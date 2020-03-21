@@ -38,7 +38,7 @@ DEFAULT_DATA = {
                 "name": "No Scheduled Events",
                 "start_time": "now",
                 "end_time": "foreseeable future",
-                "message": "No known problems. No disruptions planned.",
+                "message": "There's nothing to report here.",
                 "affects": {
                     "name": "All Systems",
                     "environments": None,
@@ -48,11 +48,43 @@ DEFAULT_DATA = {
     }
 
 
+ACTUAL_DATA = {
+    "bgcolor": "#ffcccc",
+    "events":
+        [
+            {
+                "name": "Fourfront System Upgrades",
+                "start_time": "2020-03-23 16:00:00-0400",
+                "end_time": "2020-03-24 20:00:00-0400",
+                "message": ("Systems may be unavailable for writes"
+                            " from 4pm EDT Monday, March 23, 2020"
+                            " through 8pm EDT Tuesday, March 24, 2020."),
+                "affects": {
+                    "name": "All Fourfront Systems",
+                    "environments": [
+                        "fourfront-hotseat",
+                        "fourfront-mastertest",
+                        "fourfront-webdev",
+                        "fourfront-webprod",
+                        "fourfront-webprod2",
+                        "fourfront-wolf",
+                        ],
+                },
+            },
+        ],
+    }
+
+
 def get_data():
    r = requests.get("https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json")
     result = r.json()
+    # result = ACTUAL_DATA
     return result or DEFAULT_DATA
 
+def get_data():
+    result = ACTUAL_DATA
+    return result or DEFAULT_DATA
+    
 PAGE_NAME = "4DN Status"
 
 def lambda_handler(event, context):
