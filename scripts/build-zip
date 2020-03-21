@@ -5,13 +5,24 @@ if [ "$(basename $(dirname $(pwd)))" != "functions" ]; then
     exit 1
 fi
 
+do_build=TRUE
+
 commit_id=`git describe --always --dirty`
 
 dirty_flag=`echo ${commit_id} | cut -c 8-`
 
 if [ -n "${dirty_flag}" ]; then
-    echo "Changes have been made to this repository that are not checked in."
-    exit 1
+    if [ "$1" != "--force" ]; then
+        exit 1
+	else
+	echo "+----------------------------------------------------------------------+"
+	echo "|                                WARNING                               |"
+	echo "+----------------------------------------------------------------------+"
+	echo "|  Changes have been made to this repository that are not checked in.  |"
+	echo "|  Even if tests succeed, it will not be made current.                 |"
+	echo "+----------------------------------------------------------------------+"
+        do_build=
+    fi
 fi
 
 archive_name="$(date "+%m%d%H%M%Y%S")-${commit_id}.zip"
@@ -79,6 +90,11 @@ if [ -e "../scripts/test" ]; then
         echo "Tests failed."
 	exit 1
 
+    elif [ "${do_build}" != "TRUE" ]; then
+
+        echo "Not making dirty build current."
+	exit 0
+
     fi
 
 else
@@ -87,7 +103,7 @@ else
 
 fi
 
-if [ -e ${current} ]; then
+if [ -e "${current}" ]; then
 
   mv current previous
 
