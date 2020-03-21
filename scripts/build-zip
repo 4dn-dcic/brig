@@ -68,14 +68,11 @@ pushd builds/ > /dev/null
 
 ln -f -s "${archive_name}" staged
 
-if [ -e "../scripts/test_staged" ]; then
-
-    pushd .. > /dev/null
+if [ -e "../scripts/test" ]; then
 
     echo "Running scripts/test_staged ..."
 
-    # Run scripts fro our initial directory.
-    ./scripts/test_staged
+    ../scripts/test ../tmp
 
     if [ $? -ne 0 ]; then
 
@@ -83,8 +80,6 @@ if [ -e "../scripts/test_staged" ]; then
 	exit 1
 
     fi
-
-    popd > /dev/null
 
 else
 
