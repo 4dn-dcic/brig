@@ -107,6 +107,10 @@ celerybeat.pid
 *env/
 *env.bak/
 
+# Temporary staging areas
+tmp/
+
+
 # Spyder project settings
 .spyderproject
 .spyproject
