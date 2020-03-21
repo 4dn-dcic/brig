@@ -74,6 +74,7 @@ if [ -e "../scripts/test_staged" ]; then
 
     echo "Running scripts/test_staged ..."
 
+    # Run scripts fro our initial directory.
     ./scripts/test_staged
 
     if [ $? -ne 0 ]; then
@@ -90,8 +91,6 @@ else
     echo "No scripts/test_staged is present. No acceptance testing being done."
 
 fi
-
-pushd builds/ > /dev/null
 
 if [ -e ${current} ]; then
 
