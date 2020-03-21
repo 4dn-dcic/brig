@@ -9,8 +9,14 @@ do_build=TRUE
 testonly=
 
 if [ "$1" = "--testonly" ]; then
-  testonly=TRUE
-  do_build=
+    testonly=TRUE
+    do_build=
+    shift 1
+fi
+
+if [ $# -ne 0 ]; then
+    echo "Syntax: $0 [ --help | --testonly ]"
+    exit 1
 fi
 
 commit_id=`git describe --always --dirty`
