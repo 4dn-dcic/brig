@@ -22,40 +22,44 @@ similar set of related functions that you just want to group together that way),
     |
     +-- LICENSE
     +-- README.rst
-    +-- ...more globally shared stuff...
+    +-- scripts/
+    |   |
+    |   +-- build-zip  <-- a script that will build any function if invoked from its folder
+    |   :                  with the recommended file structure.
     |
     +-- apis/
-        |
-        +-- api-1/
-        |   |
-        |   +-- README.rst  <-- Info about purpose, scripts, code review, etc. for api-1.
-        |   +-- ...other files shared by functions in api-1 ...
-        |   |
-        |   +-- functions/
-        |       |
-        |       +-- function-1/
-        |       |   |
-        |       |   +-- scripts/  <-- utility scripts to help manage function-1
-        |       |   +-- src/      <-- your source code for function-1
-        |       |   +-- tests/    <-- test code for function-1
-        |       |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-1
-        |       |   :
-        |       |
-        |       +-- function-2/
-        |       |   |
-        |       |   +-- scripts/  <-- utility scripts to help manage function-2
-        |       |   +-- src/      <-- your source code for function-2
-        |       |   +-- tests/    <-- test code for function-2
-        |       |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-2
-        |       |   :
-        |       :
-        |
-        +-- api-2/
-        |   |
-        |   +-- README.rst  <-- Info about purpose, scripts, code review, etc. for api-2.
-        |   +-- ...other files shared by functions in api-2 ...
-        |   +-- functions/
-        :
+    |   |
+    |   +-- api-1/
+    |   |   |
+    |   |   +-- README.rst  <-- Info about purpose, scripts, code review, etc. for api-1.
+    |   |   |
+    |   |   +-- functions/
+    |   |   |   |
+    |   |   |   +-- function-1/
+    |   |   |   |   |
+    |   |   |   |   requirements.txt   <-- requirements needed by files in src/
+    |   |   |   |   |                      (loaded automatically by build-zip)
+    |   |   |   |   +-- scripts/       <-- utility scripts to help manage function-1
+    |   |   |   |   +-- src/           <-- your source code for function-1
+    |   |   |   |   +-- tests/         <-- test code for function-1
+    |   |   |   |   +-- tmp/           <-- (not for checkin) reserved for building zips of function-1
+    |   |   |   |   +-- builds/        <-- (not for checkin) a local history of builds done
+    |   |   |   |   |   +-- current    <-- a symbolic link to the current build
+    |   |   |   |   |   +-- previous   <-- a symbolic link to the preious build
+    |   |   |   |   |   +-- staged     <-- a symbolic link to the latest candidate build
+    |   |   |   |   |   |                  (linked the same as 'current' IFF testing succeeds)
+    |   |   |   |   |   :
+    |   |   |   |
+    |   |   |   +-- function-2/
+    |   |   |   +-- function-3/
+    |   |   |   :
+    |   |   :
+    |   +-- api-2/
+    |   +-- api-3/
+    |   :
+    |
+    +---functions/                     <-- (see explanation below)
+
 
 Or else if you have an isolated function, put it in brig/functions.
 (You can move it to an API later if you need to), as in::
@@ -66,28 +70,29 @@ Or else if you have an isolated function, put it in brig/functions.
     +-- README.rst
     +-- ...more globally shared stuff...
     |
-    +-- apis/
+    +-- functions/
     |   |
+    |   +-- function-1/
+    |   |   |
+    |   |   +-- requirements.txt       <-- requirements needed by files in src/
+    |   |   |                              (loaded automatically by build-zip)
+    |   |   +-- scripts/               <-- utility scripts to help manage function-1
+    |   |   +-- src/                   <-- your source code for function-1
+    |   |   +-- tests/                 <-- test code for function-1
+    |   |   +-- tmp/                   <-- (not for checkin) reserved for building zips of function-1
+    |   |   +-- builds/                <-- (not for checkin) a local history of builds done
+    |   |   |   +-- current            <-- a symbolic link to the current build
+    |   |   |   +-- previous           <-- a symbolic link to the preious build
+    |   |   |   +-- staged             <-- a symbolic link to the latest candidate build
+    |   |   |   |                          (linked the same as 'current' IFF testing succeeds)
+    |   |   |   :
+    |   |
+    |   +-- function-2/
+    |   +-- function-3/
     |   :
     |
-    +-- functions/
-        |
-        +-- function-1/
-        |   |
-        |   +-- scripts/  <-- utility scripts to help manage function-1
-        |   +-- src/      <-- your source code for function-1
-        |   +-- tests/    <-- test code for function-1
-        |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-1
-        |   :
-        |
-        +-- function-2/
-        |   |
-        |   +-- scripts/  <-- utility scripts to help manage function-2
-        |   +-- src/      <-- your source code for function-2
-        |   +-- tests/    <-- test code for function-2
-        |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-2
-        |   :
-        :
+    +-- apis/                          <-- (see explanation above)
+
 
 .. Note::
 
@@ -108,8 +113,6 @@ for your folder.
 
 Etymology
 =========
-
-..include:: <isonum.txt>
 
 Named for `Brigitte <https://overwatch.gamepedia.com/Brigitte>`_,
 daughter of `Torbjörn <https://overwatch.gamepedia.com/Torbj%C3%B6rn_Lindholm>`_
