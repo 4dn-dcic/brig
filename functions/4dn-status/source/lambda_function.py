@@ -69,6 +69,7 @@ def convert_to_html(data, environment):
     event_str = io.StringIO()
     sections_used = []
     for i, event in enumerate(events, start=1):
+        print("event=", event,"i=", i)
         event_name = event.get('name') or "Event %s" % i
         affects = event.get('affects') or {}
         affects_name = affects.get('name') or "All Systems"
@@ -138,6 +139,22 @@ def filter_data(data, environment):
     }
 
 
+CORS_HEADERS = {
+    # It may be that only GET is needed, but just in case. -kmp&akb 20-Mar-2020
+    "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
+    "Access-Control-Allow-Headers": ",".join([
+        "Origin",
+        "Accept",
+        "X-Requested-With",
+        "Content-Type",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+        "Cache-Control",
+        "Authorization",
+    ]),
+    "Access-Control-Allow-Origin": "*",
+}
+
 def lambda_handler(event, context, override_data=None):
     data = override_data or get_data()
     params = event.get("queryStringParameters") or {}
@@ -147,7 +164,7 @@ def lambda_handler(event, context, override_data=None):
 #            "headers": {
 #                "Content-Type": "application/json",
 #                "Cache-Control": "public, max-age=120",
-#                # Note that this does not do Access-Control-Allow-Origin
+#                # Note that this does not do Access-Control-Allow-Origin, etc.
 #                # as this is for debugging only. -kmp 19-Mar-2020
 #            },
 #            "body": json.dumps(event, indent=2),
@@ -156,25 +173,26 @@ def lambda_handler(event, context, override_data=None):
     data = filter_data(data, environment)
     format = params.get("format") or "html"
     if format == 'json':
-        return {
+        result = {
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
                 "Cache-Control": "public, max-age=120",
-                "Access-Control-Allow-Origin": "*",
             },
             "body": json.dumps(data, indent=2),
         }
     else:
-        return {
+        result = {
             "statusCode": 200,
             "headers": {
                 "Content-Type": 'text/html',
                 "Cache-Control": "public, max-age=120",
-                "Access-Control-Allow-Origin": "*",
            },
            "body": convert_to_html(data or [], environment)
         }
+    result = dict(result, **CORS_HEADERS)
+    return result
+
 
 
 if __name__ == '__main__':
