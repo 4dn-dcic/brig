@@ -24,13 +24,20 @@ fi
 
 mkdir tmp
 
+if [ ! -e 'builds' ]; then
+
+    mkdir builds
+
+fi
+
+
 # Copy all sources to tmp/
 
 echo "Building zip ${archive_name} ..."
 
 cp src/* tmp/
 
-pushd tmp
+pushd tmp > /dev/null
 
 # Following advice from
 # https://aws.amazon.com/premiumsupport/knowledge-center/build-python-lambda-deployment-package/
@@ -43,13 +50,24 @@ if [ -e "../requirements.txt" ]; then
 
     echo "Requirements installed."
 
-fi
+else
 
+    echo "No requirements.txt found."
+
+fi
 
 chmod -R 755 .
 
 zip -r ../${archive_name} .
 
-popd
+popd  > /dev/null
 
-echo ${archive_name} created.
+mv "${archive_name}" builds/
+
+pushd builds/ > /dev/null
+
+ln -f -s "${archive_name}" current
+
+popd > /dev/null
+
+echo "builds/${archive_name} created."
