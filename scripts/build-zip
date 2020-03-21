@@ -66,6 +66,33 @@ mv "${archive_name}" builds/
 
 pushd builds/ > /dev/null
 
+ln -f -s "${archive_name}" staged
+
+if [ -e "../scripts/test_staged" ]; then
+
+    pushd .. > /dev/null
+
+    echo "Runing scripts/test_staged ..."
+
+    ./scripts/test_staged
+
+    if [ $? -ne 0 ]; then
+
+        echo "Tests failed."
+	exit 1
+
+    fi
+
+    popd > /dev/null
+
+else
+
+    echo "No scripts/test_staged is present. No acceptance testing being done.
+
+fi
+
+pushd builds/ > /dev/null
+
 if [ -e ${current} ]; then
 
   mv current previous
