@@ -4,36 +4,43 @@ import io
 import json
 import requests
 
+
+SAMPLE_EVENTS = [
+    {
+        "name": "Fourfront System Upgrades",
+        "start_time": "2020-03-23 16:00:00-0400",
+        "end_time": "2020-03-24 20:00:00-0400",
+        "message": ("Systems may be unavailable for writes"
+                    " from 4pm EDT Monday, March 23, 2020"
+                    " through 8pm EDT Tuesday, March 24, 2020."),
+        "affects": {
+            "name": "All Fourfront Systems",
+            "environments": [
+                "fourfront-hotseat",
+                "fourfront-mastertest",
+                "fourfront-webdev",
+                "fourfront-webprod",
+                "fourfront-webprod2",
+                "fourfront-wolf",
+            ],
+        },
+    },
+]
+
+
 SAMPLE_DATA = {
     "bgcolor": "#ffcccc",
-    "events":
-        [
-            {
-                "name": "Fourfront System Upgrades",
-                "start_time": "2020-03-23 16:00:00-0400",
-                "end_time": "2020-03-24 20:00:00-0400",
-                "message": ("Systems may be unavailable for writes"
-                            " from 4pm EDT Monday, March 23, 2020"
-                            " through 8pm EDT Tuesday, March 24, 2020."),
-                "affects": {
-                    "name": "All Fourfront Systems",
-                    "environments": [
-                        "fourfront-hotseat",
-                        "fourfront-mastertest",
-                        "fourfront-webdev",
-                        "fourfront-webprod",
-                        "fourfront-webprod2",
-                        "fourfront-wolf",
-                    ],
-                },
-            },
-        ],
-    }
+    "events": SAMPLE_EVENTS
+}
     
+
+DEFAULT_COLOR = "#ccffcc"
+
+
 DEFAULT_EVENT = {
     "name": "No Scheduled Events",
-    "start_time": "now",
-    "end_time": "foreseeable future",
+    "start_time": None,
+    "end_time": None,
     "message": "No known problems. No disruptions planned.",
     "affects": {
         "name": "All Systems",
@@ -41,16 +48,13 @@ DEFAULT_EVENT = {
     }
 }
 
-DEFAULT_COLOR = "#ccffcc"
-    
+   
 DEFAULT_DATA = {
     "bgcolor": DEFAULT_COLOR,
-    "events":
-        [
-            DEFAULT_EVENT,
-        ],
-    }
-
+    "events": [
+        DEFAULT_EVENT,
+    ],
+}
 
 
 def get_data():
@@ -58,86 +62,155 @@ def get_data():
     result = r.json()
     return result or DEFAULT_DATA
 
-PAGE_NAME = "4DN Status"
 
-def lambda_handler(event, context):
-    format = event.get("queryStringParameters", {}).get("format")
-    environment = event.get("queryStringParameters", {}).get("environment", "fourfront-webprod")
-    body = io.StringIO()
-    data = get_data()
-    events = data.get("events", [])
-    bgcolor = data.get("bgcolor", "#dddddd")
-    page_name = html.escape(PAGE_NAME)
-    event_body = io.StringIO()
+def convert_to_html(data, environment):
+    events = data['events']
+    bgcolor = data['bgcolor']
+    event_str = io.StringIO()
     sections_used = []
-    def process_section(i, item):
-        event_name = item.get('name', "Event %s" % i)
-        affects = item.get('affects', {})
-        affects_name = affects.get('name', "All Systems")
-        affects_envs = affects.get('environments', [])
+    for i, event in enumerate(events, start=1):
+        event_name = event.get('name') or "Event %s" % i
+        affects = event.get('affects') or {}
+        affects_name = affects.get('name') or "All Systems"
+        affects_envs = affects.get('environments') or []
         section = io.StringIO()
         section.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
         section.write("<dd>\n")
         section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
         section.write(' <span class="when">(%s to %s)</span></p>\n' 
-                      % (html.escape(item.get('start_time', 'now')),
-                         html.escape(item.get('end_time', 'the foreseeable future'))))
-        section.write('<p class="what">%s</p>\n' % html.escape(item.get('message', "To Be Determined")))
+                      % (html.escape(event.get('start_time') or "now"),
+                         html.escape(event.get('end_time') or "the foreseeable future")))
+        section.write('<p class="what">%s</p>\n' % (html.escape(event.get('message') or "To Be Determined")))
         section.write("</dt>\n")
-        if affects_envs is None or environment in affects_envs:
-            event_body.write(section.getvalue())
-            sections_used.append(i)
-    for i, item in enumerate(events, start=1):
-        process_section(i, item)
-    if not sections_used:
+        event_str.write(section.getvalue())
+        sections_used.append(i)
+    event_body = event_str.getvalue()
+    body = '''
+<!DOCTYPE html>
+<html>
+ <head>
+  <title>4DN Status</title>
+   <meta name="robots" content="noindex, nofollow" />
+   <style><!--
+   .banner {padding-left: 30pt; background: <<BGCOLOR>>; padding-bottom: 10pt; padding-top: 10pt;}
+   .page-name {padding-left: 10pt; font-size: 30pt;}
+   .logo {height: 100%; vertical-align: middle;}
+   .events {padding-left: 30pt;}
+   .event {font-size: 20pt;}
+   .who {font-weight: bold; font-size: 16pt;}
+   .when {font-weight: bold; font-size: 14pt;}
+   .what {font-weight: 12pt;}
+  --></style>
+ </head>
+ <body>
+  <div class="banner" id="banner">
+   <table>
+    <tr>
+     <td valign="middle"><img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" /></td>
+     <td class="page-name" valign="bottom">4DN Status</td>
+    </tr>
+   </table>
+  </div>
+  <dl class="events">
+   <<EVENT_BODY>>
+  </dl>
+ </body>
+</html>'''
+    body = body.replace('<<BGCOLOR>>', bgcolor)
+    body = body.replace('<<EVENT_BODY>>', event_body)
+    return body
+    
+
+def filter_data(data, environment):
+    events = data.get("events") or []
+    bgcolor = data.get("bgcolor") or "#dddddd"
+    filtered = []
+    for event in events:
+        affected_envs = (event.get('affects') or {}).get('environments')
+        if affected_envs is None or environment in affected_envs:
+            filtered.append(event)
+    if not filtered:
         bgcolor = DEFAULT_COLOR
-        process_section(0, DEFAULT_EVENT)
-    body.write("<!DOCTYPE html>")
-    body.write("<html>\n<head>\n")
-    body.write("<title>%s</title>" % page_name)
-    body.write('<meta name="robots" content="noindex, nofollow" />')
-    body.write("<style><!--\n")
-    body.write('.banner {padding-left: 30pt; background: %s; padding-bottom: 10pt; padding-top: 10pt;}\n' % bgcolor)
-    body.write('.page-name {padding-left: 10pt; font-size: 30pt;}\n')
-    body.write('.logo {height: 100%; vertical-align: middle;}')
-    body.write('.events {padding-left: 30pt;}\n')
-    body.write('.event {font-size: 20pt;}\n')
-    body.write('.who {font-weight: bold; font-size: 16pt;}\n')
-    body.write('.when {font-weight: bold; font-size: 14pt;}\n')
-    body.write('.what {font-weight: 12pt;}\n')
-    body.write('--></style>\n')
-    body.write('</head>\n<body>\n')
-    body.write('<div class="banner" id="banner">\n')
-    body.write('<table><tr>\n')
-    body.write('<td valign="middle"><img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" /></td>\n')
-    body.write('<td class="page-name" valign="bottom">%s</td>\n' % page_name)
-    body.write('</tr></table></div>\n')
-    body.write('<dl class="events">\n')
-    body.write(event_body.getvalue())
-    body.write("</dl>\n")
-    # body.write("<pre>\n")
-    # body.write(html.escape(json.dumps({"event": event}, indent=2)))
-    # body.write("</pre>\n")
-    body.write("</body></html>")
-    body_text = body.getvalue()
-    if format == "json":
+        filtered.append(DEFAULT_EVENT)
+    return {
+        "bgcolor": bgcolor,
+        "events": filtered
+    }
+
+
+def lambda_handler(event, context, override_data=None):
+    data = override_data or get_data()
+    params = event.get("queryStringParameters") or {}
+#    if params.get("echoevent"):
+#        return {
+#            "statusCode": 200,
+#            "headers": {
+#                "Content-Type": "application/json",
+#                "Cache-Control": "public, max-age=120",
+#                # Note that this does not do Access-Control-Allow-Origin
+#                # as this is for debugging only. -kmp 19-Mar-2020
+#            },
+#            "body": json.dumps(event, indent=2),
+#        }
+    environment = params.get("environment") or "fourfront-webprod"
+    data = filter_data(data, environment)
+    format = params.get("format") or "html"
+    if format == 'json':
         return {
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
                 "Cache-Control": "public, max-age=120",
+                "Access-Control-Allow-Origin": "*",
             },
-            'body': json.dumps(data, indent=2),
+            "body": json.dumps(data, indent=2),
         }
     else:
         return {
-          'statusCode': 200,
-          "headers": {
-              'Content-Type': 'text/html',
-              "Cache-Control": "public, max-age=120",
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": 'text/html',
+                "Cache-Control": "public, max-age=120",
+                "Access-Control-Allow-Origin": "*",
            },
-           'body': body_text
-       }
+           "body": convert_to_html(data or [], environment)
+        }
+
 
 if __name__ == '__main__':
-    print(lambda_handler(None, None))
+
+    def do_test_case(name, actual, expected):
+        print("="*80)
+        print("TEST:", name)
+        print(" actual=", actual)
+        print(" expected=", expected)
+        assert actual['statusCode'] == 200
+        assert json.loads(actual['body']) == expected
+        print(">>> SUCCESS <<<")
+
+    print(lambda_handler({}, None))
+
+    print(lambda_handler({"queryStringParameters": None}, None))
+
+    print(lambda_handler({"queryStringParameters": {}}, None))
+
+    print(lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev"}}, None))
+
+    print(lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev", "format": "json"}}, None))
+
+    do_test_case("json for regular hosts",
+                 lambda_handler({"queryStringParameters": {"format": "json"}},
+                                None,
+                                override_data=SAMPLE_DATA),
+                 SAMPLE_DATA)
+
+    do_test_case("json for cgapdev (not in sample set)",
+                 lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev", "format": "json"}},
+                                None,
+                                override_data=SAMPLE_DATA),
+                 DEFAULT_DATA)
+
+#    LAMBDA_EVENT_FOR_DEBUGGING = {"queryStringParameters": {"echoevent": "true"}}
+#    do_test_case("request echoevent",
+#                 lambda_handler(LAMBDA_EVENT_FOR_DEBUGGING, None),
+#                 LAMBDA_EVENT_FOR_DEBUGGING)
