@@ -66,6 +66,13 @@ mv "${archive_name}" builds/
 
 pushd builds/ > /dev/null
 
+if [ -e ${current} ]; then
+
+  mv current previous
+
+fi
+
+
 ln -f -s "${archive_name}" current
 
 popd > /dev/null
