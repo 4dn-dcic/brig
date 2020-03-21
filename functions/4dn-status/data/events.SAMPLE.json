@@ -1,0 +1,40 @@
+{
+    "page_name": "4DN Status (SAMPLE DATA)",
+    "bgcolor": "#ffcccc",
+    "events": [
+        {
+            "name": "System Upgrades",
+            "start_time": "2020-03-23 16:00:00-0400",
+            "end_time": "2020-03-24 20:00:00-0400",
+            "message": "Systems may be unavailable for writes from 4pm EDT Monday, March 23, 2020 through 8pm EDT Tuesday, March 24, 2020.",
+            "affects": {
+                "name": "data.4dnucleome.org and related systems",
+                "environments": [
+                    "fourfront-hotseat",
+                    "fourfront-mastertest",
+                    "fourfront-webdev",
+                    "fourfront-webprod",
+                    "fourfront-webprod2",
+                    "fourfront-wolf"
+                ]
+            }
+        },
+        {
+            "name": "System Upgrades (fallback date)",
+            "start_time": "2020-03-30 16:00:00-0400",
+            "end_time": "2020-03-31 20:00:00-0400",
+            "message": "If the previous week doesn't work for upgrades, systems may be unavailable for writes from 4pm EDT Monday, March 30, 2020 through 8pm EDT Tuesday, March 31, 2020.",
+            "affects": {
+                "name": "data.4dnucleome.org and related systems",
+                "environments": [
+                    "fourfront-hotseat",
+                    "fourfront-mastertest",
+                    "fourfront-webdev",
+                    "fourfront-webprod",
+                    "fourfront-webprod2",
+                    "fourfront-wolf"
+                ]
+            }
+        }
+    ]
+}
