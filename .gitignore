@@ -110,6 +110,8 @@ celerybeat.pid
 # Temporary staging areas
 tmp/
 
+# Builds
+builds/
 
 # Spyder project settings
 .spyderproject
