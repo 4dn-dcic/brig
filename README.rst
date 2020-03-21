@@ -35,16 +35,18 @@ similar set of related functions that you just want to group together that way),
         |       |
         |       +-- function-1/
         |       |   |
-        |       |   +-- export/   <-- what you export to AWS Lambda for function-1
-        |       |   +-- tests/    <-- test code for function-1
         |       |   +-- scripts/  <-- utility scripts to help manage function-1
+        |       |   +-- src/      <-- your source code for function-1
+        |       |   +-- tests/    <-- test code for function-1
+        |       |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-1
         |       |   :
         |       |
         |       +-- function-2/
         |       |   |
-        |       |   +-- export/   <-- what you export to AWS Lambda for function-2
-        |       |   +-- tests/    <-- test code for function-2
         |       |   +-- scripts/  <-- utility scripts to help manage function-2
+        |       |   +-- src/      <-- your source code for function-2
+        |       |   +-- tests/    <-- test code for function-2
+        |       |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-2
         |       |   :
         |       :
         |
@@ -55,8 +57,8 @@ similar set of related functions that you just want to group together that way),
         |   +-- functions/
         :
 
-Or else if you have an isolated function, put it in brig/functions. (You can move it to an API
-later if you need to), as in::
+Or else if you have an isolated function, put it in brig/functions.
+(You can move it to an API later if you need to), as in::
 
     brig/
     |
@@ -72,16 +74,18 @@ later if you need to), as in::
         |
         +-- function-1/
         |   |
-        |   +-- export/   <-- what you export to AWS Lambda for function-1
-        |   +-- tests/    <-- test code for function-1
         |   +-- scripts/  <-- utility scripts to help manage function-1
+        |   +-- src/      <-- your source code for function-1
+        |   +-- tests/    <-- test code for function-1
+        |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-1
         |   :
         |
         +-- function-2/
         |   |
-        |   +-- export/   <-- what you export to AWS Lambda for function-2
-        |   +-- tests/    <-- test code for function-2
         |   +-- scripts/  <-- utility scripts to help manage function-2
+        |   +-- src/      <-- your source code for function-2
+        |   +-- tests/    <-- test code for function-2
+        |   +-- tmp/      <-- (not for checkin) reserved for building zips of function-2
         |   :
         :
 
@@ -98,7 +102,8 @@ Think of the function or API folders you make as light-weight repositories,
 so we don't need a million repositories, one per lambda function.
 So you don't need to coordinate changes with things in other folders,
 and you should do separate versioning of your own area if that's appropriate.
-But you should document your code review policy in the ``README.rst`` for your folder.
+But you should document your code review policy in the ``README.rst``
+for your folder.
 
 
 Etymology
@@ -110,8 +115,5 @@ Named for `Brigitte <https://overwatch.gamepedia.com/Brigitte>`_,
 daughter of `Torbjörn <https://overwatch.gamepedia.com/Torbj%C3%B6rn_Lindholm>`_
 (namesake of our 4DN-DCIC `torb <https://github.com/4dn-dcic/torb>`_ repo).
 
-The name is also a pun with a second meaning, intended
-to evoke the notion of a place to lock away your
-source code securely so it doesn't get out of hand.
-
-
+The name is also a pun with a second meaning, intended to evoke the notion of
+a place to lock away your source code securely so it doesn't get out of hand.
