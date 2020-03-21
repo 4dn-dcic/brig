@@ -23,7 +23,7 @@ if [ -n "${dirty_flag}" ]; then
         echo "Even if tests succeed, the build will not be made current (locally)."
     else
         echo "Changes have been made to this repository."
-        echo "To force testing anyway, use --force."
+        echo "To force testing anyway, use --testonly."
         exit 1
     fi
 else
