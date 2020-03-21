@@ -38,7 +38,7 @@ DEFAULT_DATA = {
                 "name": "No Scheduled Events",
                 "start_time": "now",
                 "end_time": "foreseeable future",
-                "message": "There's nothing to report here.",
+                "message": "No known problems. No disruptions planned.",
                 "affects": {
                     "name": "All Systems",
                     "environments": None,
@@ -48,46 +48,17 @@ DEFAULT_DATA = {
     }
 
 
-ACTUAL_DATA = {
-    "bgcolor": "#ffcccc",
-    "events":
-        [
-            {
-                "name": "Fourfront System Upgrades",
-                "start_time": "2020-03-23 16:00:00-0400",
-                "end_time": "2020-03-24 20:00:00-0400",
-                "message": ("Systems may be unavailable for writes"
-                            " from 4pm EDT Monday, March 23, 2020"
-                            " through 8pm EDT Tuesday, March 24, 2020."),
-                "affects": {
-                    "name": "All Fourfront Systems",
-                    "environments": [
-                        "fourfront-hotseat",
-                        "fourfront-mastertest",
-                        "fourfront-webdev",
-                        "fourfront-webprod",
-                        "fourfront-webprod2",
-                        "fourfront-wolf",
-                        ],
-                },
-            },
-        ],
-    }
-
 
 def get_data():
-   r = requests.get("https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json")
+    r = requests.get("https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json")
     result = r.json()
-    # result = ACTUAL_DATA
     return result or DEFAULT_DATA
 
-def get_data():
-    result = ACTUAL_DATA
-    return result or DEFAULT_DATA
-    
 PAGE_NAME = "4DN Status"
 
 def lambda_handler(event, context):
+    format = event.get("queryStringParameters", {}).get("format")
+    internal = event.get("queryStringParameters", {}).get("internal", "FALSE").lower() == "true"
     body = io.StringIO()
     data = get_data()
     events = data.get("events", [])
@@ -115,9 +86,13 @@ def lambda_handler(event, context):
     body.write('</tr></table></div>\n')
     body.write('<dl class="events">\n')
     for i, item in enumerate(events):
-        body.write('<dt class="event">%s</dt>\n' % html.escape(item.get('name', "Event %s" % i)))
+        event_name = item.get('name', "Event %s" % i)
+        affects = item.get('affects', {})
+        affects_name = affects.get('name', "All Systems")
+        affects_envs = affects.get('environments', [])
+        body.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
         body.write("<dd>\n")
-        body.write('<p><span class="who">%s</span>' % html.escape(item.get('affects', {}).get('name', "All Systems")))
+        body.write('<p><span class="who">%s</span>' % html.escape(affects_name))
         body.write(' <span class="when">(%s to %s)</span></p>\n' 
                    % (html.escape(item.get('start_time', 'now')),
                       html.escape(item.get('end_time', 'the foreseeable future'))))
@@ -129,12 +104,12 @@ def lambda_handler(event, context):
     # body.write("</pre>\n")
     body.write("</body></html>")
     body_text = body.getvalue()
-    format = event.get("queryStringParameters", {}).get("format")
     if format == "json":
         return {
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=120",
             },
             'body': json.dumps(data, indent=2),
         }
@@ -143,6 +118,7 @@ def lambda_handler(event, context):
           'statusCode': 200,
           "headers": {
               'Content-Type': 'text/html',
+              "Cache-Control": "public, max-age=120",
            },
            'body': body_text
        }
