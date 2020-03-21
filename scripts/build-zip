@@ -72,7 +72,7 @@ if [ -e "../scripts/test_staged" ]; then
 
     pushd .. > /dev/null
 
-    echo "Runing scripts/test_staged ..."
+    echo "Running scripts/test_staged ..."
 
     ./scripts/test_staged
 
@@ -87,7 +87,7 @@ if [ -e "../scripts/test_staged" ]; then
 
 else
 
-    echo "No scripts/test_staged is present. No acceptance testing being done.
+    echo "No scripts/test_staged is present. No acceptance testing being done."
 
 fi
 
