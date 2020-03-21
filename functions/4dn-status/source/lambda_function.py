@@ -24,26 +24,30 @@ SAMPLE_DATA = {
                         "fourfront-webprod",
                         "fourfront-webprod2",
                         "fourfront-wolf",
-                        ],
+                    ],
                 },
             },
         ],
     }
     
+DEFAULT_EVENT = {
+    "name": "No Scheduled Events",
+    "start_time": "now",
+    "end_time": "foreseeable future",
+    "message": "No known problems. No disruptions planned.",
+    "affects": {
+        "name": "All Systems",
+        "environments": None,
+    }
+}
+
+DEFAULT_COLOR = "#ccffcc"
+    
 DEFAULT_DATA = {
-    "bgcolor": "#ccffcc",
+    "bgcolor": DEFAULT_COLOR,
     "events":
         [
-            {
-                "name": "No Scheduled Events",
-                "start_time": "now",
-                "end_time": "foreseeable future",
-                "message": "No known problems. No disruptions planned.",
-                "affects": {
-                    "name": "All Systems",
-                    "environments": None,
-                },
-            },
+            DEFAULT_EVENT,
         ],
     }
 
@@ -58,12 +62,36 @@ PAGE_NAME = "4DN Status"
 
 def lambda_handler(event, context):
     format = event.get("queryStringParameters", {}).get("format")
-    internal = event.get("queryStringParameters", {}).get("internal", "FALSE").lower() == "true"
+    environment = event.get("queryStringParameters", {}).get("environment", "fourfront-webprod")
     body = io.StringIO()
     data = get_data()
     events = data.get("events", [])
     bgcolor = data.get("bgcolor", "#dddddd")
     page_name = html.escape(PAGE_NAME)
+    event_body = io.StringIO()
+    sections_used = []
+    def process_section(i, item):
+        event_name = item.get('name', "Event %s" % i)
+        affects = item.get('affects', {})
+        affects_name = affects.get('name', "All Systems")
+        affects_envs = affects.get('environments', [])
+        section = io.StringIO()
+        section.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
+        section.write("<dd>\n")
+        section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
+        section.write(' <span class="when">(%s to %s)</span></p>\n' 
+                      % (html.escape(item.get('start_time', 'now')),
+                         html.escape(item.get('end_time', 'the foreseeable future'))))
+        section.write('<p class="what">%s</p>\n' % html.escape(item.get('message', "To Be Determined")))
+        section.write("</dt>\n")
+        if affects_envs is None or environment in affects_envs:
+            event_body.write(section.getvalue())
+            sections_used.append(i)
+    for i, item in enumerate(events, start=1):
+        process_section(i, item)
+    if not sections_used:
+        bgcolor = DEFAULT_COLOR
+        process_section(0, DEFAULT_EVENT)
     body.write("<!DOCTYPE html>")
     body.write("<html>\n<head>\n")
     body.write("<title>%s</title>" % page_name)
@@ -79,25 +107,13 @@ def lambda_handler(event, context):
     body.write('.what {font-weight: 12pt;}\n')
     body.write('--></style>\n')
     body.write('</head>\n<body>\n')
-    body.write('<div class="banner">\n')
+    body.write('<div class="banner" id="banner">\n')
     body.write('<table><tr>\n')
     body.write('<td valign="middle"><img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" /></td>\n')
     body.write('<td class="page-name" valign="bottom">%s</td>\n' % page_name)
     body.write('</tr></table></div>\n')
     body.write('<dl class="events">\n')
-    for i, item in enumerate(events):
-        event_name = item.get('name', "Event %s" % i)
-        affects = item.get('affects', {})
-        affects_name = affects.get('name', "All Systems")
-        affects_envs = affects.get('environments', [])
-        body.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
-        body.write("<dd>\n")
-        body.write('<p><span class="who">%s</span>' % html.escape(affects_name))
-        body.write(' <span class="when">(%s to %s)</span></p>\n' 
-                   % (html.escape(item.get('start_time', 'now')),
-                      html.escape(item.get('end_time', 'the foreseeable future'))))
-        body.write('<p class="what">%s</p>\n' % html.escape(item.get('message', "To Be Determined")))
-        body.write("</dt>\n")
+    body.write(event_body.getvalue())
     body.write("</dl>\n")
     # body.write("<pre>\n")
     # body.write(html.escape(json.dumps({"event": event}, indent=2)))
