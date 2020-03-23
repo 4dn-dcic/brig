@@ -44,13 +44,13 @@ fi
 
 archive_name="$(date "+%m%d%H%M%Y%S")-${commit_id}.zip"
 
-# Make a fresh tmp dir to work with.
+# Make a fresh stg dir to work with.
 
-if [ -e 'tmp' ]; then
-    rm -rf tmp
+if [ -e 'stg' ]; then
+    rm -rf stg
 fi
 
-mkdir tmp
+mkdir stg
 
 if [ ! -e 'builds' ]; then
 
@@ -59,13 +59,13 @@ if [ ! -e 'builds' ]; then
 fi
 
 
-# Copy all sources to tmp/
+# Copy all sources to stg/
 
 echo "Building zip ${archive_name} ..."
 
-cp src/* tmp/
+cp src/* stg/
 
-pushd tmp > /dev/null
+pushd stg > /dev/null
 
 # Following advice from
 # https://aws.amazon.com/premiumsupport/knowledge-center/build-python-lambda-deployment-package/
@@ -98,25 +98,28 @@ ln -f -s "${archive_name}" staged
 
 if [ -e "../scripts/test" ]; then
 
-    echo "Running scripts/test_staged ..."
+    echo "Running scripts/test on staged files in 'stg' ..."
+    # All scripts must expect to receive an argument of what folder to test.
+    # TODO: It might be should centralize that. -kmp 23-Mar-2020
 
-    ../scripts/test ../tmp
+    ../scripts/test ../stg
 
     if [ $? -ne 0 ]; then
 
-        echo "Tests failed."
+        echo "Tests of 'stg' failed."
 	exit 1
 
     elif [ "${do_build}" != "TRUE" ]; then
 
-        echo "Not making dirty build current."
+        echo "Tests of 'stg' succeeded."
+        echo "NOT making dirty build current."
 	exit 0
 
     fi
 
 else
 
-    echo "No scripts/test_staged is present. No acceptance testing being done."
+    echo "No scripts/test is present. No acceptance testing being done."
 
 fi
 

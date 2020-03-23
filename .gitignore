@@ -108,7 +108,7 @@ celerybeat.pid
 *env.bak/
 
 # Temporary staging areas
-tmp/
+stg/
 
 # Builds
 builds/

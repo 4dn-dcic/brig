@@ -42,7 +42,7 @@ similar set of related functions that you just want to group together that way),
     |   |   |   |   +-- scripts/       <-- utility scripts to help manage function-1
     |   |   |   |   +-- src/           <-- your source code for function-1
     |   |   |   |   +-- tests/         <-- test code for function-1
-    |   |   |   |   +-- tmp/           <-- (not for checkin) reserved for building zips of function-1
+    |   |   |   |   +-- stg/           <-- (not for checkin) reserved staging area for building zips of function-1
     |   |   |   |   +-- builds/        <-- (not for checkin) a local history of builds done
     |   |   |   |   |   +-- current    <-- a symbolic link to the current build
     |   |   |   |   |   +-- previous   <-- a symbolic link to the preious build
@@ -79,7 +79,7 @@ Or else if you have an isolated function, put it in brig/functions.
     |   |   +-- scripts/               <-- utility scripts to help manage function-1
     |   |   +-- src/                   <-- your source code for function-1
     |   |   +-- tests/                 <-- test code for function-1
-    |   |   +-- tmp/                   <-- (not for checkin) reserved for building zips of function-1
+    |   |   +-- stg/                   <-- (not for checkin) reserved staging area for building zips of function-1
     |   |   +-- builds/                <-- (not for checkin) a local history of builds done
     |   |   |   +-- current            <-- a symbolic link to the current build
     |   |   |   +-- previous           <-- a symbolic link to the preious build
