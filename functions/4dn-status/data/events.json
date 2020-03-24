@@ -1,0 +1,34 @@
+{
+    "page_name": "4DN Status",
+    "bgcolor": "#ffffcc",
+    "events": [
+        {
+            "name": "System Upgrades",
+            "start_time": "2020-03-23 16:00:00-0400",
+            "end_time": "2020-03-24 16:00:00-0400",
+            "message": "4DN DCIC will be conducting a database upgrade to the 4DN Data Portal between March 23rd 4:00pm EDT and March 24th 4:00pm EDT. Affected services will include data submission, new account creation, and saving and sharing of HiGlass Displays. The portal may be inaccessible for brief periods during this time.",
+            "affects": {
+                "name": "Public servers",
+                "environments": [
+                    "fourfront-webprod",
+                    "fourfront-webprod2"
+                ]
+            }
+        },
+        {
+            "name": "System Upgrades",
+            "start_time": "2020-03-23 16:00:00-0400",
+            "end_time": "2020-03-24 20:00:00-0400",
+            "message": "Data, Staging, and Fourfront systems may be down, unstable, or have data writes suppressed from 4pm EDT Monday, March 23, 2020 through 8pm EDT Tuesday, March 24, 2020.",
+            "affects": {
+                "name": "Fourfront (but not CGAP) servers",
+                "environments": [
+                    "fourfront-hotseat",
+                    "fourfront-mastertest",
+                    "fourfront-webdev",
+                    "fourfront-wolf"
+                ]
+            }
+        }
+    ]
+}

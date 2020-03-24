@@ -104,11 +104,14 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+*env/
+*env.bak/
+
+# Temporary staging areas
+stg/
+
+# Builds
+builds/
 
 # Spyder project settings
 .spyderproject
@@ -127,3 +130,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PyCharm
+.idea/
+
+# Emacs
+*~
+
+# Mac folder metadata
+.DS_Store
