@@ -69,7 +69,7 @@ def convert_to_html(data, environment):
     event_str = io.StringIO()
     sections_used = []
     for i, event in enumerate(events, start=1):
-        print("event=", event,"i=", i)
+        # print("event=", event, "i=", i)
         event_name = event.get('name') or "Event %s" % i
         affects = event.get('affects') or {}
         affects_name = affects.get('name') or "All Systems"
@@ -158,17 +158,24 @@ CORS_HEADERS = {
 def lambda_handler(event, context, override_data=None):
     data = override_data or get_data()
     params = event.get("queryStringParameters") or {}
-#    if params.get("echoevent"):
-#        return {
-#            "statusCode": 200,
-#            "headers": {
-#                "Content-Type": "application/json",
-#                "Cache-Control": "public, max-age=120",
-#                # Note that this does not do Access-Control-Allow-Origin, etc.
-#                # as this is for debugging only. -kmp 19-Mar-2020
-#            },
-#            "body": json.dumps(event, indent=2),
-#        }
+
+    # # It might be a security problem to leave this turned on in production, but it may be useful to enable
+    # # this during development to be able to see what's coming through. -kmp 7-Jul-2020
+    #
+    # if params.get("echoevent"):
+    #     return {
+    #         "statusCode": 200,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Cache-Control": "public, max-age=120",
+    #             # Note that this does not do Access-Control-Allow-Origin, etc.
+    #             # as this is for debugging only. -kmp 19-Mar-2020
+    #         },
+    #         "body": json.dumps(event, indent=2),
+    #         # Maybe also this, too ...
+    #         # "context": json.dumps(context)  # or repr(context)
+    #     }
+
     environment = params.get("environment") or "fourfront-webprod"
     data = filter_data(data, environment)
     format = params.get("format") or "html"
@@ -197,38 +204,4 @@ def lambda_handler(event, context, override_data=None):
 
 if __name__ == '__main__':
 
-    def do_test_case(name, actual, expected):
-        print("="*80)
-        print("TEST:", name)
-        print(" actual=", actual)
-        print(" expected=", expected)
-        assert actual['statusCode'] == 200
-        assert json.loads(actual['body']) == expected
-        print(">>> SUCCESS <<<")
-
-    print(lambda_handler({}, None))
-
-    print(lambda_handler({"queryStringParameters": None}, None))
-
-    print(lambda_handler({"queryStringParameters": {}}, None))
-
-    print(lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev"}}, None))
-
-    print(lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev", "format": "json"}}, None))
-
-    do_test_case("json for regular hosts",
-                 lambda_handler({"queryStringParameters": {"format": "json"}},
-                                None,
-                                override_data=SAMPLE_DATA),
-                 SAMPLE_DATA)
-
-    do_test_case("json for cgapdev (not in sample set)",
-                 lambda_handler({"queryStringParameters": {"environment": "fourfront-cgapdev", "format": "json"}},
-                                None,
-                                override_data=SAMPLE_DATA),
-                 DEFAULT_DATA)
-
-#    LAMBDA_EVENT_FOR_DEBUGGING = {"queryStringParameters": {"echoevent": "true"}}
-#    do_test_case("request echoevent",
-#                 lambda_handler(LAMBDA_EVENT_FOR_DEBUGGING, None),
-#                 LAMBDA_EVENT_FOR_DEBUGGING)
+    raise RuntimeError("Tests have moved. Use the `brig-test` script.")

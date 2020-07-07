@@ -51,19 +51,25 @@ Not all of the goals of this repo are yet realized, though some are.
 Setting up scripts
 ------------------
 
-It is recommended, though not required, that you link your personal ``bin`` folder to the ``scripts/build-zip`` script
-here, as in::
+It is recommended, though not required, that you put the ``bin`` folder on your PATH,
+as in::
 
-    ln -s `pwd`/scripts/build-zip ~/bin/build-zip
+    export PATH=/path/to/brig/scripts:$PATH
 
-or otherwise this folder into your path (which will pick up other scripts as they are added)::
+This will make the following scripts available:
 
-    export PATH=$PATH:`pwd`/scripts
+* ``brig-build`` will build a zip file for upload.
 
-Using build-zip to package a Lambda Function zip file for upload
-----------------------------------------------------------------
+* ``brig-test`` will test a brig function to see if it's ready for upload.
+  This is the same as::
 
-You can 'build' a function by using the ``build-zip`` command with your working directory set
+    brig-build --testonly
+
+
+Using brig-build to package a Lambda Function zip file for upload
+-----------------------------------------------------------------
+
+You can 'build' a function by using the ``brig-build`` command with your working directory set
 to the folder of any function. See `File Structure`_ below for details.
 
 Building needs these prerequisites:
@@ -87,12 +93,20 @@ Building will accomplish these actions:
   as a command line argument, so that the script can prepend it. (This allows testing other folders
   with the same script if needed.)
 
-* If tests pass, or if there were no tests, any existing ``builds/current`` will be renamed ``builds/previous``.
-  (Any prior ``builds/previous`` link will be lost, though the underlying target of that link will be unaffected.)
-  A new ``buids/current`` will be made to link to the same file that ``builds/staged`` points to.
-  (An implication is that ``builds/current`` and ``builds/staged`` point to the same file if testing succeeds.)
+* If tests pass, or if there were no tests, any existing ``builds/current`` will be renamed ``builds/previous``
+  and a new ``buids/current`` will be made to link to the same file that ``builds/staged`` points to.
+
+  Notes:
+
+  * Any prior ``builds/previous`` link will be lost, though the underlying target of that link will be unaffected.
+  * ``builds/current`` and ``builds/staged`` point to the same file only if testing succeeds.
+
+
+Uploading Your Lambda Function
+------------------------------
 
 You'll need to upload the zip file to corresponding ``Lambda > Functions > {function-name}`` page yourself.
+A script to do this is planned but does not yet exist.
 
 
 File Structure
@@ -107,8 +121,8 @@ similar set of related functions that you just want to group together that way),
     +-- README.rst
     +-- scripts/
     |   |
-    |   +-- build-zip  <-- a script that will build any function if invoked from its folder
-    |   :                  with the recommended file structure.
+    |   +-- brig-build  <-- a script that will build any function if invoked from its folder
+    |   :                   with the recommended file structure.
     |
     +-- apis/
     |   |
@@ -121,7 +135,7 @@ similar set of related functions that you just want to group together that way),
     |   |   |   +-- function-1/
     |   |   |   |   |
     |   |   |   |   requirements.txt   <-- requirements needed by files in src/
-    |   |   |   |   |                      (loaded automatically by build-zip)
+    |   |   |   |   |                      (loaded automatically by brig-build)
     |   |   |   |   +-- scripts/       <-- utility scripts to help manage function-1
     |   |   |   |   +-- src/           <-- your source code for function-1
     |   |   |   |   +-- tests/         <-- test code for function-1
@@ -158,7 +172,7 @@ Or else if you have an isolated function, put it in brig/functions.
     |   +-- function-1/
     |   |   |
     |   |   +-- requirements.txt       <-- requirements needed by files in src/
-    |   |   |                              (loaded automatically by build-zip)
+    |   |   |                              (loaded automatically by brig-build)
     |   |   +-- scripts/               <-- utility scripts to help manage function-1
     |   |   +-- src/                   <-- your source code for function-1
     |   |   +-- tests/                 <-- test code for function-1
