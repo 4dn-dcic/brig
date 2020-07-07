@@ -21,7 +21,13 @@ fi
 
 commit_id=`git describe --always --dirty`
 
+# Uncomment for debugging.
+# echo "commit_id=${commit_id}"
+
 dirty_flag=`echo ${commit_id} | cut -c 8-`
+
+# Uncomment for debugging.
+# echo "dirty_flag=${dirty_flag}"
 
 if [ -n "${dirty_flag}" ]; then
     if [ -n "${testonly}" ]; then
