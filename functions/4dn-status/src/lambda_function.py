@@ -57,10 +57,15 @@ DEFAULT_DATA = {
 }
 
 
-def get_data():
-    r = requests.get("https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json")
-    result = r.json()
-    return result or DEFAULT_DATA
+CALENDAR_DATA_URL = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
+
+def get_calendar_data():
+    try:
+        r = requests.get(CALENDAR_DATA_URL)
+        result = r.json()
+        return result or DEFAULT_DATA
+    except Exception:
+        return DEFAULT_DATA
 
 
 def convert_to_html(data, environment):
@@ -155,8 +160,8 @@ CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
 }
 
-def lambda_handler(event, context, override_data=None):
-    data = override_data or get_data()
+def lambda_handler(event, context):
+    data = get_calendar_data()
     params = event.get("queryStringParameters") or {}
 
     # # It might be a security problem to leave this turned on in production, but it may be useful to enable
