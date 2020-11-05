@@ -226,6 +226,16 @@ class TestApi(ApiTestCase):
             (22, 'fourfront-webprod', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
             (33, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
 
+            # Synonym for fourfront-webprod
+            (1011, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1033, 'fourfront-webprod2', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
+            (1033, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+
+            # Synonym for fourfront-webprod
+            (2011, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (2022, 'fourfront-green', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
+            (3033, 'fourfront-green', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+
             (111, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
             (222, 'fourfront-mastertest', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
             (333, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
@@ -285,6 +295,16 @@ class TestApi(ApiTestCase):
             (1111, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
             (2222, 'fourfront-webprod', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
             (3333, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+
+            # Synonym for fourfront-webprod
+            (101111, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (102222, 'fourfront-webprod2', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
+            (103333, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+
+            # Synonym for fourfront-webprod
+            (201111, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (202222, 'fourfront-green', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
+            (203333, 'fourfront-green', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
 
             (4, None, BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
             (5, None, DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),

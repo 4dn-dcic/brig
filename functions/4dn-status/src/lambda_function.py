@@ -140,7 +140,7 @@ def filter_data(data, environment):
         start_time = event.get('start_time', None)
         end_time = event.get('end_time', None)
         affected_envs = (event.get('affects') or {}).get('environments')
-        if affected_envs is None or environment in affected_envs:
+        if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
             if in_date_range(now, start_time, end_time):
                 filtered.append(event)
     if not filtered:
@@ -191,7 +191,7 @@ def resolve_environment(referer, application, environment):
     :return: the environment to use
     """
     if environment:
-        return environment
+        return canonicalize_environment(environment)
     if referer:
         m = REFERER_REGEXP.match(referer)
         name = m.group(1)
@@ -202,10 +202,35 @@ def resolve_environment(referer, application, environment):
                 return CGAP_PROD_ENV
             else:
                 return FOURFRONT_PROD_ENV
-    elif application == 'cgap':
+    if application == 'cgap':
         return CGAP_PROD_ENV
     else:
         return FOURFRONT_PROD_ENV
+
+
+def canonicalize_environment(environment):
+    """
+    NOTE WELL THAT THIS ENTIRE FACILITY BLURS THE DIFFERENCE BETWEEN GREEN AND BLUE,
+    so this function does so as well. Any name for a staging or production environment
+    is canonicalized to the canonical name of the CGAP prod env (fourfront-cgap)
+    or the canonical name of the FF prod env (fourfront-webprod).
+    """
+    if environment == 'fourfront-cgap':
+        # This is the only prod env that doesn't fit in the normal naming paradigms
+        return CGAP_PROD_ENV
+    elif 'blue' in environment or 'green' in environment or 'webprod' in environment:
+        # blue/green/webprod are the normal markers of a production env
+        if 'cgap' in environment:
+            # Must be a cgap env like fourfront-cgap-blue (future) or cgap-blue (future)
+            # or fourfront-webprod (old) or fourfront-webprod2 (old)
+            # or fourfront-blue (current) or fourfront-green (current)
+            #
+            # (BUT NOTE that we happen to use fourfront-webprod as the canonical exemplar)
+            return CGAP_PROD_ENV
+        else:
+            return FOURFRONT_PROD_ENV
+    else:
+        return environment
 
 
 def lambda_handler(event, context):
