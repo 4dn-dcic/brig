@@ -1,41 +1,17 @@
+import datetime
 import html
 import http
 import io
 import json
+import pytz
+import re
 import requests
 
+from datetime import datetime as datetime_type
+from dateutil.parser import parse as dateutil_parse
 
-SAMPLE_EVENTS = [
-    {
-        "name": "Fourfront System Upgrades",
-        "start_time": "2020-03-23 16:00:00-0400",
-        "end_time": "2020-03-24 20:00:00-0400",
-        "message": ("Systems may be unavailable for writes"
-                    " from 4pm EDT Monday, March 23, 2020"
-                    " through 8pm EDT Tuesday, March 24, 2020."),
-        "affects": {
-            "name": "All Fourfront Systems",
-            "environments": [
-                "fourfront-hotseat",
-                "fourfront-mastertest",
-                "fourfront-webdev",
-                "fourfront-webprod",
-                "fourfront-webprod2",
-                "fourfront-wolf",
-            ],
-        },
-    },
-]
-
-
-SAMPLE_DATA = {
-    "bgcolor": "#ffcccc",
-    "events": SAMPLE_EVENTS
-}
-    
 
 DEFAULT_COLOR = "#ccffcc"
-
 
 DEFAULT_EVENT = {
     "name": "No Scheduled Events",
@@ -127,14 +103,46 @@ def convert_to_html(data, environment):
     return body
     
 
+HMS_TZ = pytz.timezone("US/Eastern")
+
+
+def parse_datetime(dt):
+    if dt is None:
+        return None
+    try:
+        if not isinstance(dt, datetime_type):
+            dt = dateutil_parse(dt)
+        if not dt.tzinfo:
+            dt = HMS_TZ.localize(dt)
+        return dt
+    except Exception:
+        return None
+
+
+def in_date_range(now, start, end):
+    start = parse_datetime(start)
+    end = parse_datetime(end)
+    return (not start or start <= now) and (not end or end >= now)
+
+
+def hms_now():
+    now = datetime.datetime.now()
+    now_in_hms_tz = HMS_TZ.localize(now)
+    return now_in_hms_tz
+
+
 def filter_data(data, environment):
     events = data.get("events") or []
     bgcolor = data.get("bgcolor") or "#dddddd"
     filtered = []
+    now = hms_now()
     for event in events:
+        start_time = event.get('start_time', None)
+        end_time = event.get('end_time', None)
         affected_envs = (event.get('affects') or {}).get('environments')
         if affected_envs is None or environment in affected_envs:
-            filtered.append(event)
+            if in_date_range(now, start_time, end_time):
+                filtered.append(event)
     if not filtered:
         bgcolor = DEFAULT_COLOR
         filtered.append(DEFAULT_EVENT)
@@ -160,6 +168,46 @@ CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
 }
 
+# NOTE: This will treate http://mastertest-2.xxx/ as if it were just http://mastertest.xxx/
+#       so that a cloned system will behave like its twin. That probably doesn't matter
+#       a lot but was easy to do.
+
+REFERER_REGEXP = re.compile("https?[:][/][/](data|staging|cgap|fourfront-[a-z-]*[a-z])([-]?[0-9]+)?[.].*")
+
+FOURFRONT_PROD_ENV = 'fourfront-webprod'
+CGAP_PROD_ENV = 'fourfront-cgap'
+
+def resolve_environment(referer, application, environment):
+    """
+    Given referer, application, and environment supplied with a request, figure out what environment to use.
+
+    Note that if both multiple incompatible options are supplied, no error results.
+    This function is intended to just pick the best value without complaining
+    There is no value to an error message.
+
+    :param referer: a string (referer URL) or None
+    :param application: a string (either 'cgap' or 'fourfront') or None
+    :param environment: an environment (e.g., 'fourfront-mastertest') or None
+    :return: the environment to use
+    """
+    if environment:
+        return environment
+    if referer:
+        m = REFERER_REGEXP.match(referer)
+        name = m.group(1)
+        if m:
+            if 'fourfront-' in name:
+                return name
+            elif 'cgap' in m.group(1):
+                return CGAP_PROD_ENV
+            else:
+                return FOURFRONT_PROD_ENV
+    elif application == 'cgap':
+        return CGAP_PROD_ENV
+    else:
+        return FOURFRONT_PROD_ENV
+
+
 def lambda_handler(event, context):
     data = get_calendar_data()
     params = event.get("queryStringParameters") or {}
@@ -167,22 +215,28 @@ def lambda_handler(event, context):
     # It might be a security problem to leave this turned on in production, but it may be useful to enable
     # this during development to be able to see what's coming through. -kmp 7-Jul-2020
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    if params.get("echoevent"):
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=120",
-                # Note that this does not do Access-Control-Allow-Origin, etc.
-                # as this is for debugging only. -kmp 19-Mar-2020
-            },
-            "body": json.dumps(event, indent=2),
-            # Maybe also this, too ...
-            # "context": json.dumps(context)  # or repr(context)
-        }
+    # if params.get("echoevent"):
+    #     return {
+    #         "statusCode": 200,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Cache-Control": "public, max-age=120",
+    #             # Note that this does not do Access-Control-Allow-Origin, etc.
+    #             # as this is for debugging only. -kmp 19-Mar-2020
+    #         },
+    #         "body": json.dumps(event, indent=2),
+    #         # Maybe also this, too ...
+    #         # "context": json.dumps(context)  # or repr(context)
+    #     }
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    environment = params.get("environment") or "fourfront-webprod"
+    # The referer is available in a standard event packaging, in the headers,
+    # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
+
+    application = params.get("application")
+    referer = event.get('headers', {}).get('referer')
+    environment = params.get("environment")
+    environment = resolve_environment(referer=referer, application=application, environment=environment)
     data = filter_data(data, environment)
     format = params.get("format") or "html"
     if format == 'json':

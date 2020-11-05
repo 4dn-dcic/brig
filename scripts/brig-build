@@ -72,6 +72,8 @@ echo "Building zip ${archive_name} ..."
 
 cp -Rp src/ stg/
 
+find stg -name "*.pyc" -delete
+
 rm -rf venv
 
 pyenv exec python -m venv venv
@@ -117,9 +119,9 @@ ln -f -s "${archive_name}" staged
 
 echo "Running unit tests..."
 
-pushd ..  > /dev/null
+pushd ../stg  > /dev/null
 
-PYTHONPATH="$(pwd)/stg:${PYTHONPATH}" python -m unittest stg/*_tests.py
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv
 
 popd > /dev/null
 
