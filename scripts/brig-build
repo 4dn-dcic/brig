@@ -121,7 +121,11 @@ echo "Running unit tests..."
 
 pushd ../stg  > /dev/null
 
-PYTHONPATH=".:${PYTHONPATH}" pytest -vv
+# We name the test files in this directory specifically because we don't
+# want to descend into all the included libraries that may have test files
+# we don't want to run.
+
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 popd > /dev/null
 

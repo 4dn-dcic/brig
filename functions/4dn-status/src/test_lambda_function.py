@@ -3,12 +3,12 @@ import datetime
 import json
 import unittest
 
-from qa_utils_subset import ControlledTime
+from dcicutils.misc_utils import hms_now, HMS_TZ, as_datetime, in_datetime_interval
+from dcicutils.qa_utils import ControlledTime
 from unittest import mock
 from . import lambda_function as lambda_function_module
 from .lambda_function import (
     lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL, resolve_environment,
-    in_date_range, parse_datetime, hms_now, HMS_TZ,
 )
 
 
@@ -402,7 +402,7 @@ class TestInternals(ApiTestCaseBase):
             mocked_calendar = 'error'
             self.assertEqual(get_calendar_data(), DEFAULT_DATA)
 
-    def test_in_date_range(self):
+    def test_in_datetime_interval(self):
 
         EST = "-0500"
         EDT = "-0400"
@@ -416,49 +416,50 @@ class TestInternals(ApiTestCaseBase):
 
             now = hms_now()  # This will be converted to HMS time.
             # print("now=", now)
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00" + EDT,
-                                 "2016-07-04 00:01:00" + EDT)
+            assert in_datetime_interval(now,
+                                        start="2016-07-03 23:59:00" + EDT,
+                                        end="2016-07-04 00:01:00" + EDT)
 
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00" + EDT_ALT,
-                                 "2016-07-04 00:01:00" + EDT_ALT)
+            assert in_datetime_interval(now,
+                                        start="2016-07-03 23:59:00" + EDT_ALT,
+                                        end="2016-07-04 00:01:00" + EDT_ALT)
 
-            assert not in_date_range(now,
-                                     "2016-08-03 23:59:00" + EDT,
-                                     "2016-08-04 00:01:00" + EDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-08-03 23:59:00" + EDT,
+                                            end="2016-08-04 00:01:00" + EDT)
 
-            assert not in_date_range(now,
-                                     "2016-06-03 23:59:00" + EDT,
-                                     "2016-06-04 00:01:00" + EDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 23:59:00" + EDT,
+                                            end="2016-06-04 00:01:00" + EDT)
 
-            # If no timezone, US/Eastern (for HMS) is assumed.
-            # Dates between Sune and August are all in Daylight Time.
+            # If no timezone, local time is assumed, whether or not Daylight Time.
 
-            assert in_date_range(now,
-                                 "2016-06-03 23:59:00",
-                                 "2016-08-04 00:01:00")
+            now_local = now.replace(tzinfo=None)
 
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00",
-                                 "2016-07-04 00:01:00")
+            assert in_datetime_interval(now_local,
+                                        start="2016-06-03 23:59:00",
+                                        end="2016-08-04 00:01:00")
 
-            assert not in_date_range(now,
-                                     "2016-08-03 23:59:00",
-                                     "2016-08-04 00:01:00")
+            assert in_datetime_interval(now_local,
+                                        start="2016-07-03 23:59:00",
+                                        end="2016-07-04 00:01:00")
 
-            assert not in_date_range(now,
-                                     "2016-06-03 23:59:00",
-                                     "2016-06-04 00:01:00")
+            assert not in_datetime_interval(now_local,
+                                            start="2016-08-03 23:59:00",
+                                            end="2016-08-04 00:01:00")
 
-            assert in_date_range(now,
-                                 "2016-06-03 23:59:00",
-                                 "2016-08-04 00:01:00")
+            assert not in_datetime_interval(now_local,
+                                            start="2016-06-03 23:59:00",
+                                            end="2016-06-04 00:01:00")
+
+            assert in_datetime_interval(now_local,
+                                        start="2016-06-03 23:59:00",
+                                        end="2016-08-04 00:01:00")
 
             # It would be weird to provide anything other than the HMS timezone, but it happens to work to do that.
-            assert not in_date_range(now,
-                                     "2016-06-03 22:59:00" + CDT,
-                                     "2016-06-03 23:01:00" + CDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 22:59:00" + CDT,
+                                            end="2016-06-03 23:01:00" + CDT)
 
         # This just makes sure that EDT/EST is accommodated by the hms_now() function,
         # though it will be separately tested, too.
@@ -466,20 +467,20 @@ class TestInternals(ApiTestCaseBase):
 
             now = hms_now()
             # print("now=", now)
-            assert in_date_range(now,
-                                 "2016-01-03 23:59:00" + EST,
-                                 "2016-01-04 00:01:00" + EST)
+            assert in_datetime_interval(now,
+                                        start="2016-01-03 23:59:00" + EST,
+                                        end="2016-01-04 00:01:00" + EST)
 
             # If no timezone, US/Eastern (for HMS) is assumed.
             # Dates between December and February are all in Standard Time.
-            assert in_date_range(now,
-                                 "2016-01-03 23:59:00",
-                                 "2016-01-04 00:01:00")
+            assert in_datetime_interval(now.replace(tzinfo=None),
+                                        start="2016-01-03 23:59:00",
+                                        end="2016-01-04 00:01:00")
 
             # It would be weird to provide anything other than the HMS timezone, but it happens to work to do that.
-            assert not in_date_range(now,
-                                     "2016-06-03 22:59:00" + CST,
-                                     "2016-06-03 23:01:00" + CST)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 22:59:00" + CST,
+                                            end="2016-06-03 23:01:00" + CST)
 
     def test_hms_now(self):
 
@@ -487,20 +488,20 @@ class TestInternals(ApiTestCaseBase):
 
             assert str(hms_now()) == "2016-01-04 00:00:01-05:00"
 
-    def test_parse_datetime(self):
+    def test_as_datetime(self):
 
         EST = "-0500"
         EDT = "-0400"
 
         time1 = HMS_TZ.localize(datetime.datetime(2016, 6, 3, 22, 59))
         time_str1 = "2016-06-03 22:59:00"
-        assert parse_datetime(time_str1 + EDT) == time1
-        assert parse_datetime(time_str1) == time1
+        assert as_datetime(time_str1 + EDT) == time1
+        assert as_datetime(time_str1, tz=HMS_TZ) == time1
 
         time2 = HMS_TZ.localize(datetime.datetime(2016, 1, 3, 22, 59))
         time_str2 = "2016-01-03 22:59:00"
-        assert parse_datetime(time_str2 + EST) == time2
-        assert parse_datetime(time_str2) == time2
+        assert as_datetime(time_str2 + EST) == time2
+        assert as_datetime(time_str2, tz=HMS_TZ) == time2
 
     def test_resolve_environment(self):
 

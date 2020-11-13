@@ -1,14 +1,15 @@
-import datetime
+# import datetime
 import html
-import http
+# import http
 import io
 import json
-import pytz
+# import pytz
 import re
 import requests
 
-from datetime import datetime as datetime_type
-from dateutil.parser import parse as dateutil_parse
+# from datetime import datetime as datetime_type
+# from dateutil.parser import parse as dateutil_parse
+from dcicutils.misc_utils import HMS_TZ, hms_now, as_datetime, in_datetime_interval, ignored
 
 
 DEFAULT_COLOR = "#ccffcc"
@@ -35,6 +36,7 @@ DEFAULT_DATA = {
 
 CALENDAR_DATA_URL = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
 
+
 def get_calendar_data():
     try:
         r = requests.get(CALENDAR_DATA_URL)
@@ -45,6 +47,7 @@ def get_calendar_data():
 
 
 def convert_to_html(data, environment):
+    ignored(environment)  # TODO: Should this be ignored?
     events = data['events']
     bgcolor = data['bgcolor']
     event_str = io.StringIO()
@@ -88,7 +91,9 @@ def convert_to_html(data, environment):
   <div class="banner" id="banner">
    <table>
     <tr>
-     <td valign="middle"><img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" /></td>
+     <td valign="middle">
+      <img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" />
+     </td>
      <td class="page-name" valign="bottom">4DN Status</td>
     </tr>
    </table>
@@ -101,34 +106,6 @@ def convert_to_html(data, environment):
     body = body.replace('<<BGCOLOR>>', bgcolor)
     body = body.replace('<<EVENT_BODY>>', event_body)
     return body
-    
-
-HMS_TZ = pytz.timezone("US/Eastern")
-
-
-def parse_datetime(dt):
-    if dt is None:
-        return None
-    try:
-        if not isinstance(dt, datetime_type):
-            dt = dateutil_parse(dt)
-        if not dt.tzinfo:
-            dt = HMS_TZ.localize(dt)
-        return dt
-    except Exception:
-        return None
-
-
-def in_date_range(now, start, end):
-    start = parse_datetime(start)
-    end = parse_datetime(end)
-    return (not start or start <= now) and (not end or end >= now)
-
-
-def hms_now():
-    now = datetime.datetime.now()
-    now_in_hms_tz = HMS_TZ.localize(now)
-    return now_in_hms_tz
 
 
 def filter_data(data, environment):
@@ -141,7 +118,9 @@ def filter_data(data, environment):
         end_time = event.get('end_time', None)
         affected_envs = (event.get('affects') or {}).get('environments')
         if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
-            if in_date_range(now, start_time, end_time):
+            if in_datetime_interval(now,
+                                    start=as_datetime(start_time, tz=HMS_TZ),
+                                    end=as_datetime(end_time, tz=HMS_TZ)):
                 filtered.append(event)
     if not filtered:
         bgcolor = DEFAULT_COLOR
@@ -176,6 +155,7 @@ REFERER_REGEXP = re.compile("https?[:][/][/](data|staging|cgap|fourfront-[a-z-]*
 
 FOURFRONT_PROD_ENV = 'fourfront-webprod'
 CGAP_PROD_ENV = 'fourfront-cgap'
+
 
 def resolve_environment(referer, application, environment):
     """
@@ -234,6 +214,8 @@ def canonicalize_environment(environment):
 
 
 def lambda_handler(event, context):
+    ignored(context)  # This will be ignored unless the commented-out block below is uncommented.
+
     data = get_calendar_data()
     params = event.get("queryStringParameters") or {}
 
@@ -263,8 +245,8 @@ def lambda_handler(event, context):
     environment = params.get("environment")
     environment = resolve_environment(referer=referer, application=application, environment=environment)
     data = filter_data(data, environment)
-    format = params.get("format") or "html"
-    if format == 'json':
+    response_format = params.get("format") or "html"
+    if response_format == 'json':
         result = {
             "statusCode": 200,
             "headers": {
@@ -279,12 +261,11 @@ def lambda_handler(event, context):
             "headers": {
                 "Content-Type": 'text/html',
                 "Cache-Control": "public, max-age=120",
-           },
-           "body": convert_to_html(data or [], environment)
+            },
+            "body": convert_to_html(data or [], environment)
         }
     result = dict(result, **CORS_HEADERS)
     return result
-
 
 
 if __name__ == '__main__':
