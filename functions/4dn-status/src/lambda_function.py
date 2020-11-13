@@ -57,7 +57,7 @@ def convert_to_html(data, environment):
         event_name = event.get('name') or "Event %s" % i
         affects = event.get('affects') or {}
         affects_name = affects.get('name') or "All Systems"
-        affects_envs = affects.get('environments') or []
+        # affects_envs = affects.get('environments') or []
         section = io.StringIO()
         section.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
         section.write("<dd>\n")
