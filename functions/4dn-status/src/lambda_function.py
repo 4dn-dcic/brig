@@ -4,12 +4,13 @@ import html
 import io
 import json
 # import pytz
-import re
+# import re
 import requests
 
 # from datetime import datetime as datetime_type
 # from dateutil.parser import parse as dateutil_parse
 from dcicutils.misc_utils import HMS_TZ, hms_now, as_datetime, in_datetime_interval, ignored
+from dcicutils.env_utils import classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env
 
 
 DEFAULT_COLOR = "#ccffcc"
@@ -147,14 +148,10 @@ CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
 }
 
-# NOTE: This will treate http://mastertest-2.xxx/ as if it were just http://mastertest.xxx/
-#       so that a cloned system will behave like its twin. That probably doesn't matter
-#       a lot but was easy to do.
 
-REFERER_REGEXP = re.compile("https?[:][/][/](data|staging|cgap|fourfront-[a-z-]*[a-z])([-]?[0-9]+)?[.].*")
-
-FOURFRONT_PROD_ENV = 'fourfront-webprod'
-CGAP_PROD_ENV = 'fourfront-cgap'
+def canonicalize_environment(environment):
+    # We implement canonical naming of these environments by using the bucket environment.
+    return get_bucket_env(environment)
 
 
 def resolve_environment(referer, application, environment):
@@ -173,44 +170,15 @@ def resolve_environment(referer, application, environment):
     if environment:
         return canonicalize_environment(environment)
     if referer:
-        m = REFERER_REGEXP.match(referer)
-        name = m.group(1)
-        if m:
-            if 'fourfront-' in name:
-                return name
-            elif 'cgap' in m.group(1):
-                return CGAP_PROD_ENV
-            else:
-                return FOURFRONT_PROD_ENV
+        classification = classify_server_url(referer, raise_error=False)
+        if classification['kind'] in ('fourfront', 'cgap'):
+            env = classification['environment']
+            env = env.strip('-0123456789')
+            return env
     if application == 'cgap':
-        return CGAP_PROD_ENV
+        return CGAP_PROD_BUCKET_ENV
     else:
-        return FOURFRONT_PROD_ENV
-
-
-def canonicalize_environment(environment):
-    """
-    NOTE WELL THAT THIS ENTIRE FACILITY BLURS THE DIFFERENCE BETWEEN GREEN AND BLUE,
-    so this function does so as well. Any name for a staging or production environment
-    is canonicalized to the canonical name of the CGAP prod env (fourfront-cgap)
-    or the canonical name of the FF prod env (fourfront-webprod).
-    """
-    if environment == 'fourfront-cgap':
-        # This is the only prod env that doesn't fit in the normal naming paradigms
-        return CGAP_PROD_ENV
-    elif 'blue' in environment or 'green' in environment or 'webprod' in environment:
-        # blue/green/webprod are the normal markers of a production env
-        if 'cgap' in environment:
-            # Must be a cgap env like fourfront-cgap-blue (future) or cgap-blue (future)
-            # or fourfront-webprod (old) or fourfront-webprod2 (old)
-            # or fourfront-blue (current) or fourfront-green (current)
-            #
-            # (BUT NOTE that we happen to use fourfront-webprod as the canonical exemplar)
-            return CGAP_PROD_ENV
-        else:
-            return FOURFRONT_PROD_ENV
-    else:
-        return environment
+        return FF_PROD_BUCKET_ENV
 
 
 def lambda_handler(event, context):

@@ -27,7 +27,7 @@ include = [
 # in this envronment (which may be tricky to arrange in some cases), but should give PyCharm something to
 # use. For more reliable pre-deploy testing, use the brig-test script from within an individual function or
 # api folder. -kmp 5-Nov-2020
-dcicutils = ">=1.4.0"
+dcicutils = ">=1.5.0"
 python = ">=3.6,<3.7"
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.4"
