@@ -48,7 +48,7 @@ else
     fi
 fi
 
-archive_name="$(date "+%m%d%H%M%Y%S")-${commit_id}.zip"
+archive_name="$(date "+%Y%m%d%H%M%S")-${commit_id}.zip"
 
 # Make a fresh stg dir to work with.
 
