@@ -125,9 +125,8 @@ def filter_data(data, environment):
         end_time = event.get('end_time', None)
         affected_envs = (event.get('affects') or {}).get('environments')
         if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
-            if in_datetime_interval(now,
-                                    start=as_datetime(start_time, tz=HMS_TZ),
-                                    end=as_datetime(end_time, tz=HMS_TZ)):
+            # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
+            if in_datetime_interval(now, start=start_time, end=end_time):
                 filtered.append(event)
     if not filtered:
         bgcolor = DEFAULT_COLOR
