@@ -121,13 +121,17 @@ def filter_data(data, environment):
     filtered = []
     now = hms_now()
     for event in events:
-        start_time = event.get('start_time', None)
-        end_time = event.get('end_time', None)
-        affected_envs = (event.get('affects') or {}).get('environments')
-        if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
-            # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
-            if in_datetime_interval(now, start=start_time, end=end_time):
-                filtered.append(event)
+        try:
+            start_time = event.get('start_time', None)
+            end_time = event.get('end_time', None)
+            affected_envs = (event.get('affects') or {}).get('environments')
+            if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
+                # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
+                if in_datetime_interval(now, start=start_time, end=end_time):
+                    filtered.append(event)
+        except Exception:
+            # If there is any malformed data or some othe program error while processing on, just skip to the next.
+            pass
     if not filtered:
         bgcolor = DEFAULT_COLOR
         filtered.append(DEFAULT_EVENT)
