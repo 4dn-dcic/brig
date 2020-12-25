@@ -8,7 +8,7 @@ from dcicutils.qa_utils import ControlledTime
 from unittest import mock
 from . import lambda_function as lambda_function_module
 from .lambda_function import (
-    lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL, resolve_environment,
+    lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL_PRD, resolve_environment,
 )
 
 
@@ -384,7 +384,7 @@ class TestInternals(ApiTestCaseBase):
             no_calendar = None
 
             def mocked_get(url):
-                self.assertEqual(url, CALENDAR_DATA_URL)
+                self.assertEqual(url, CALENDAR_DATA_URL_PRD)
                 if mocked_calendar == 'error':
                     raise RuntimeError("Some sort of error happened.")
                 return self.FakeResponse(json=mocked_calendar)

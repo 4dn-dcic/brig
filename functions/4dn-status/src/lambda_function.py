@@ -35,12 +35,18 @@ DEFAULT_DATA = {
 }
 
 
-CALENDAR_DATA_URL = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
+CALENDAR_DATA_URL_PRD = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
+CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events-staged.json"
+
+PRD_ENDPOINT_PATH = '/4dn-status'
+STG_ENDPOINT_PATH = '/4dn-status-staged'
 
 
-def get_calendar_data():
+def get_calendar_data(staged=False):
+    url = CALENDAR_DATA_URL_STG if staged else CALENDAR_DATA_URL_PRD
+
     try:
-        r = requests.get(CALENDAR_DATA_URL)
+        r = requests.get(url)
         result = r.json()
         return result or DEFAULT_DATA
     except Exception:
@@ -184,56 +190,64 @@ def resolve_environment(referer, application, environment):
 def lambda_handler(event, context):
     ignored(context)  # This will be ignored unless the commented-out block below is uncommented.
 
-    data = get_calendar_data()
+    staged = event.get("rawPath", PRD_ENDPOINT_PATH) == STG_ENDPOINT_PATH
+
+    data = get_calendar_data(staged=staged)
     params = event.get("queryStringParameters") or {}
 
     # It might be a security problem to leave this turned on in production, but it may be useful to enable
     # this during development to be able to see what's coming through. -kmp 7-Jul-2020
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    # if params.get("echoevent"):
-    #     return {
-    #         "statusCode": 200,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Cache-Control": "public, max-age=120",
-    #             # Note that this does not do Access-Control-Allow-Origin, etc.
-    #             # as this is for debugging only. -kmp 19-Mar-2020
-    #         },
-    #         "body": json.dumps(event, indent=2),
-    #         # Maybe also this, too ...
-    #         # "context": json.dumps(context)  # or repr(context)
-    #     }
+    if params.get("echoevent"):
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=120",
+                # Note that this does not do Access-Control-Allow-Origin, etc.
+                # as this is for debugging only. -kmp 19-Mar-2020
+            },
+            "body": json.dumps(event, indent=2),
+            # Maybe also this, too ...
+            # "context": json.dumps(context)  # or repr(context)
+        }
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     # The referer is available in a standard event packaging, in the headers,
     # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
 
-    application = params.get("application")
-    referer = event.get('headers', {}).get('referer')
-    environment = params.get("environment")
-    environment = resolve_environment(referer=referer, application=application, environment=environment)
-    data = filter_data(data, environment)
-    response_format = params.get("format") or "html"
-    if response_format == 'json':
-        result = {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=120",
-            },
-            "body": json.dumps(data, indent=2),
-        }
-    else:
-        result = {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": 'text/html',
-                "Cache-Control": "public, max-age=120",
-            },
-            "body": convert_to_html(data or [], environment)
-        }
-    result = dict(result, **CORS_HEADERS)
-    return result
+    try:
+
+        application = params.get("application")
+        referer = event.get('headers', {}).get('referer')
+        environment = params.get("environment")
+        environment = resolve_environment(referer=referer, application=application, environment=environment)
+        data = filter_data(data, environment)
+        response_format = params.get("format") or "html"
+        if response_format == 'json':
+            result = {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Cache-Control": "public, max-age=120",
+                },
+                "body": json.dumps(data, indent=2),
+            }
+        else:
+            result = {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": 'text/html',
+                    "Cache-Control": "public, max-age=120",
+                },
+                "body": convert_to_html(data or [], environment)
+            }
+        result = dict(result, **CORS_HEADERS)
+        return result
+
+    except Exception as e:
+
+        return {"message": "%s: %s" % (type(e), e)}
 
 
 if __name__ == '__main__':
