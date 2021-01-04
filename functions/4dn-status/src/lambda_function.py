@@ -201,19 +201,19 @@ def lambda_handler(event, context):
     # It might be a security problem to leave this turned on in production, but it may be useful to enable
     # this during development to be able to see what's coming through. -kmp 7-Jul-2020
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    if params.get("echoevent"):
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=120",
-                # Note that this does not do Access-Control-Allow-Origin, etc.
-                # as this is for debugging only. -kmp 19-Mar-2020
-            },
-            "body": json.dumps(event, indent=2),
-            # Maybe also this, too ...
-            # "context": json.dumps(context)  # or repr(context)
-        }
+    # if params.get("echoevent"):
+    #     return {
+    #         "statusCode": 200,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Cache-Control": "public, max-age=120",
+    #             # Note that this does not do Access-Control-Allow-Origin, etc.
+    #             # as this is for debugging only. -kmp 19-Mar-2020
+    #         },
+    #         "body": json.dumps(event, indent=2),
+    #         # Maybe also this, too ...
+    #         # "context": json.dumps(context)  # or repr(context)
+    #     }
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     # The referer is available in a standard event packaging, in the headers,
