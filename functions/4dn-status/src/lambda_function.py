@@ -38,6 +38,9 @@ PRD_ENDPOINT_PATH = '/4dn-status'
 STG_ENDPOINT_PATH = '/4dn-status-staged'
 
 
+CALENDAR_MISSING_MESSAGE = "Calendar data is unavailable."
+CALENDAR_MISSING_COLOR = "#ffdddd"
+
 def get_calendar_data(staged=False):
     url = CALENDAR_DATA_URL_STG if staged else CALENDAR_DATA_URL_PRD
 
@@ -47,10 +50,16 @@ def get_calendar_data(staged=False):
         result = r.json()
         return result or DEFAULT_DATA
     except Exception as e:
-        data = DEFAULT_DATA.copy()
-        data["problems"] = [
-            {"message": "%s: %s" % (full_class_name(e), e)}
-        ]
+        data = {
+            "calendar": [],
+            "problems": [
+                {
+                    "message": "%s: %s" % (full_class_name(e), e)
+                }
+            ],
+            "message": CALENDAR_MISSING_MESSAGE,
+            "bgcolor": CALENDAR_MISSING_COLOR,
+        }
         return data
 
 
@@ -67,34 +76,38 @@ def convert_to_html(data, environment):
         logo_url = FF_LOGO_URL
         logo_url_alt = "4DN sphere logo"
         page_name = "Fourfront Status"
-    calendar_events = data['calendar']
-    bgcolor = data['bgcolor']
+    calendar_events = data.get('calendar', [])
+    bgcolor = data.get('bgcolor', 'white')
+    message = data.get('message')
     event_str = io.StringIO()
     sections_used = []
-    for i, event in enumerate(calendar_events, start=1):
-        # print("calendar_event=", calendar_event, "i=", i)
-        event_name = event.get('name') or "Event %s" % i
-        affects = event.get('affects') or {}
-        affects_name = affects.get('name') or "All Systems"
-        # affects_envs = affects.get('environments') or []
-        section = io.StringIO()
-        section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
-        section.write("<dd>\n")
-        section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
-        section.write(' <span class="when">(%s to %s)</span></p>\n' 
-                      % (html.escape(event.get('start_time') or "now"),
-                         html.escape(event.get('end_time') or "the foreseeable future")))
-        section.write('<p class="what">%s</p>\n' % (html.escape(event.get('message') or "To Be Determined")))
-        section.write("</dt>\n")
-        event_str.write(section.getvalue())
-        sections_used.append(i)
+    if not message:
+        for i, event in enumerate(calendar_events, start=1):
+            # print("calendar_event=", calendar_event, "i=", i)
+            event_name = event.get('name') or "Event %s" % i
+            affects = event.get('affects') or {}
+            affects_name = affects.get('name') or "All Systems"
+            # affects_envs = affects.get('environments') or []
+            section = io.StringIO()
+            section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
+            section.write("<dd>\n")
+            section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
+            section.write(' <span class="when">(%s to %s)</span></p>\n'
+                          % (html.escape(event.get('start_time') or "now"),
+                             html.escape(event.get('end_time') or "the foreseeable future")))
+            section.write('<p class="what">%s</p>\n' % (html.escape(event.get('message') or "To Be Determined")))
+            section.write("</dt>\n")
+            event_str.write(section.getvalue())
+            sections_used.append(i)
     event_body = event_str.getvalue()
+    message = '<div class="message"><p>NOTE: ' + message + '</p></div>' if message else ''
     substitutions = {
         'BGCOLOR': bgcolor,
         'LOGO_URL': logo_url,
         'LOGO_URL_ALT': logo_url_alt,
         'PAGE_NAME': page_name,
         'EVENT_BODY': event_body,
+        'MESSAGE': message,
     }
     body = '''
 <!DOCTYPE html>
@@ -110,7 +123,9 @@ def convert_to_html(data, environment):
    .calendar-event {font-size: 20pt;}
    .who {font-weight: bold; font-size: 16pt;}
    .when {font-weight: bold; font-size: 14pt;}
-   .what {font-weight: 12pt;}
+   .what {font-size: 12pt;}
+   div.message {margin-top: 5pt; padding-left: 30pt; border: 1pt red solid; width: 500pt; background: #ffeedd;}
+   div.message p {font-weight: bold;}
   --></style>
  </head>
  <body>
@@ -124,6 +139,7 @@ def convert_to_html(data, environment):
     </tr>
    </table>
   </div>
+  <<MESSAGE>>
   <dl class="calendar">
    <<EVENT_BODY>>
   </dl>
@@ -137,6 +153,7 @@ def convert_to_html(data, environment):
 def filter_data(data, environment, debug=False, now=None):
     calendar_events = data.get("calendar") or []
     bgcolor = data.get("bgcolor") or "#dddddd"
+    message = data.get("message")
     filtered_calendar_events = []
     filter_now = as_datetime(now, raise_error=False) or hms_now()
     problems = data.get("problems", [])
@@ -166,12 +183,14 @@ def filter_data(data, environment, debug=False, now=None):
         result["seen"] = seen
         result["defaulted"] = False
         result["removed"] = removed
-    if not filtered_calendar_events:
+    if not filtered_calendar_events and not message:
         if debug:
             result["defaulted"] = True
         bgcolor = DEFAULT_COLOR
         filtered_calendar_events.append(DEFAULT_EVENT)
     result["bgcolor"] = bgcolor
+    if message:
+        result["message"] = message
     result["calendar"] = filtered_calendar_events
     if problems:
         result["problems"] = problems

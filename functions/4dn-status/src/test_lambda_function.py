@@ -9,6 +9,7 @@ from unittest import mock
 from . import lambda_function as lambda_function_module
 from .lambda_function import (
     lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL_PRD, resolve_environment,
+    CALENDAR_MISSING_COLOR, CALENDAR_MISSING_MESSAGE,
 )
 
 
@@ -427,13 +428,21 @@ class TestInternals(ApiTestCaseBase):
             self.assertEqual(get_calendar_data(), DEFAULT_DATA)
 
             mocked_calendar = no_calendar
-            expected_data = DEFAULT_DATA.copy()
-            expected_data["problems"] = [{"message": "RuntimeError: Simulated HTTP request error."}]
+            expected_data = {
+                "calendar": [],
+                "problems": [{"message": "RuntimeError: Simulated HTTP request error."}],
+                "message": CALENDAR_MISSING_MESSAGE,
+                "bgcolor": CALENDAR_MISSING_COLOR,
+            }
             self.assertEqual(get_calendar_data(), expected_data)
 
             mocked_calendar = 'error'
-            expected_data = DEFAULT_DATA.copy()
-            expected_data["problems"] = [{"message": "RuntimeError: Some sort of error happened."}]
+            expected_data = {
+                "calendar": [],
+                "problems": [{"message": "RuntimeError: Some sort of error happened."}],
+                "message": CALENDAR_MISSING_MESSAGE,
+                "bgcolor": CALENDAR_MISSING_COLOR,
+            }
             self.assertEqual(get_calendar_data(), expected_data)
 
     def test_in_datetime_interval(self):
