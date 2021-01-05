@@ -48,7 +48,7 @@ else
     fi
 fi
 
-archive_name="$(date "+%m%d%H%M%Y%S")-${commit_id}.zip"
+archive_name="$(date "+%Y%m%d%H%M%S")-${commit_id}.zip"
 
 # Make a fresh stg dir to work with.
 
@@ -71,6 +71,8 @@ echo  "Current directory: "`pwd`
 echo "Building zip ${archive_name} ..."
 
 cp -Rp src/ stg/
+
+find stg -name "*.pyc" -delete
 
 rm -rf venv
 
@@ -117,9 +119,13 @@ ln -f -s "${archive_name}" staged
 
 echo "Running unit tests..."
 
-pushd ..  > /dev/null
+pushd ../stg  > /dev/null
 
-PYTHONPATH="$(pwd)/stg:${PYTHONPATH}" python -m unittest stg/*_tests.py
+# We name the test files in this directory specifically because we don't
+# want to descend into all the included libraries that may have test files
+# we don't want to run.
+
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 popd > /dev/null
 

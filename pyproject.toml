@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "brig"
+version = "0.2"
+description = "A psuedo-library wrapper for debugging lambda functionality."
+authors = ["4DN-DCIC Team <support@4dnucleome.org>"]
+license = "MIT"
+keywords = ["brig"]
+readme = "README.rst"
+homepage = "https://github.com/4dn-dcic/brig"
+repository = "https://github.com/4dn-dcic/brig"
+packages = [ ]
+classifiers = [
+  'Development Status :: 4 - Beta',
+  'Intended Audience :: Developers',
+  'License :: OSI Approved :: MIT License',
+  'Natural Language :: English',
+  'Programming Language :: Python :: 3.6',
+]
+include = [
+  # The history file is unreferenced and empty. -kmp 12-Mar-2020
+  # "HISTORY.rst",
+  "LICENSE",
+]
+
+[tool.poetry.dependencies]
+# This environment is used only for debugging and should include the union of all libraries used anywhere
+# in this envronment (which may be tricky to arrange in some cases), but should give PyCharm something to
+# use. For more reliable pre-deploy testing, use the brig-test script from within an individual function or
+# api folder. -kmp 5-Nov-2020
+dcicutils = ">=1.8.1"
+python = ">=3.6,<3.7"
+python-dateutil = ">=2.8.1"
+pytz = ">=2020.4"
+requests = ">=2.24.0"
+
+[tool.poetry.dev-dependencies]
+pytest = ">=3.0.5,<4"
+pytest-cov = ">=2.3.1,<3"
+# pygments is only needed by PyCharm to render the README
+# nose = ">=1.3.7"
+pygments = ">=2"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
