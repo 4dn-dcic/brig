@@ -3,12 +3,12 @@ import datetime
 import json
 import unittest
 
-from qa_utils_subset import ControlledTime
+from dcicutils.misc_utils import hms_now, HMS_TZ, as_datetime, in_datetime_interval
+from dcicutils.qa_utils import ControlledTime
 from unittest import mock
 from . import lambda_function as lambda_function_module
 from .lambda_function import (
-    lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL, resolve_environment,
-    in_date_range, parse_datetime, hms_now, HMS_TZ,
+    lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL_PRD, resolve_environment,
 )
 
 
@@ -51,12 +51,17 @@ DURING_SAMPLE_BLOCK2 = datetime.datetime(2020, 7, 1, 6, 0, 0)
 END_SAMPLE_BLOCK2 = "2020-09-01 00:00:00-0400"  # EDT
 AFTER_SAMPLE_BLOCK2 = datetime.datetime(2020, 9, 15, 6, 0, 0)
 
+BEFORE_SAMPLE_BLOCK3 = datetime.datetime(2020, 5, 30, 6, 0, 0)
+START_SAMPLE_BLOCK3 = "2020-06-01 00:00:00"  # US/Eastern
+DURING_SAMPLE_BLOCK3 = datetime.datetime(2020, 7, 1, 6, 0, 0)
+END_SAMPLE_BLOCK3 = "2020-09-01 00:00:00"  # US/Eastern
+AFTER_SAMPLE_BLOCK3 = datetime.datetime(2020, 9, 15, 6, 0, 0)
 
 SAMPLE_FF_SYSTEM_UPGRADE = {
     "name": "Fourfront System Upgrades",
     "start_time": START_SAMPLE_BLOCK1,
     "end_time": END_SAMPLE_BLOCK1,
-    "message": ("Systems may be unavailable."),
+    "message": "Systems may be unavailable.",
     "affects": {
         "name": "All Fourfront Systems",
         "environments": [
@@ -99,7 +104,7 @@ SAMPLE_EVENTS = [SAMPLE_FF_SYSTEM_UPGRADE, SAMPLE_FF_SUMMER_NOTICE, SAMPLE_CG_SU
 
 SAMPLE_DATA = {
     "bgcolor": "#ffcccc",
-    "events": SAMPLE_EVENTS
+    "calendar": SAMPLE_EVENTS
 }
 
 # Note that the first two of this is https, and the others are http.
@@ -137,6 +142,10 @@ class ApiTestCaseBase(unittest.TestCase):
         def json(self):
             return self._json
 
+        def raise_for_status(self):
+            if self._json is None:
+                raise RuntimeError("Simulated HTTP request error.")
+
 
 class ApiTestCase(ApiTestCaseBase):
 
@@ -164,9 +173,10 @@ class ApiTestCase(ApiTestCaseBase):
             self.assertEqual(actual, expected_result)
         if expected_events is not None:
             done = True
-            self.debug_print("expected_events=",json.dumps(expected_events, indent=2))
-            self.assertEqual(actual.get('events'), expected_events)
+            self.debug_print("expected_events=", json.dumps(expected_events, indent=2))
+            self.assertEqual(actual.get('calendar'), expected_events)
         print("done=", done)
+
 
 @contextlib.contextmanager
 def sample_data():
@@ -263,6 +273,26 @@ class TestApi(ApiTestCase):
             (44444, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
             (55555, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK2, [SAMPLE_CG_SUMMER_NOTICE]),
             (66666, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+
+            (7, None, BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (8, None, DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (9, None, AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+
+            (77, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (88, 'fourfront-webprod', DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (99, 'fourfront-webprod', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+
+            (777, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (888, 'fourfront-mastertest', DURING_SAMPLE_BLOCK3, [SAMPLE_FF_SUMMER_NOTICE]),
+            (999, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+
+            (7777, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (8888, 'fourfront-cgap', DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (9999, 'fourfront-cgap', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+
+            (77777, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (88888, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK3, [SAMPLE_CG_SUMMER_NOTICE]),
+            (99999, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
 
         ]
         for n, environment, base_time, expected_events in scenarios:
@@ -383,7 +413,7 @@ class TestInternals(ApiTestCaseBase):
             no_calendar = None
 
             def mocked_get(url):
-                self.assertEqual(url, CALENDAR_DATA_URL)
+                self.assertEqual(url, CALENDAR_DATA_URL_PRD)
                 if mocked_calendar == 'error':
                     raise RuntimeError("Some sort of error happened.")
                 return self.FakeResponse(json=mocked_calendar)
@@ -397,68 +427,74 @@ class TestInternals(ApiTestCaseBase):
             self.assertEqual(get_calendar_data(), DEFAULT_DATA)
 
             mocked_calendar = no_calendar
-            self.assertEqual(get_calendar_data(), DEFAULT_DATA)
+            expected_data = DEFAULT_DATA.copy()
+            expected_data["problems"] = [{"message": "RuntimeError: Simulated HTTP request error."}]
+            self.assertEqual(get_calendar_data(), expected_data)
 
             mocked_calendar = 'error'
-            self.assertEqual(get_calendar_data(), DEFAULT_DATA)
+            expected_data = DEFAULT_DATA.copy()
+            expected_data["problems"] = [{"message": "RuntimeError: Some sort of error happened."}]
+            self.assertEqual(get_calendar_data(), expected_data)
 
-    def test_in_date_range(self):
+    def test_in_datetime_interval(self):
 
-        EST = "-0500"
-        EDT = "-0400"
+        tz_est_offset = "-0500"       # US/Eastern Standard Time (EST) - 5 hours offset from UTC
+        tz_edt_offset = "-0400"       # US/Eastern Daylight Time (EDT) - 4 hours offset from UTC
 
-        EDT_ALT = "-04:00"
+        tz_edt_offset_alt = "-04:00"  # US/Eastern Daylight Time (EDT) - 4 hours offset from UTC (alternate notation)
 
-        CST = "-0600"
-        CDT = "-0500"
+        tz_cst_offset = "-0600"       # US/Central Standard Time (CST) - 6 hours offset from UTC
+        tz_cdt_offset = "-0500"       # US/Central Daylight Time (CDT) - 5 hours offset from UTC
 
         with datetime_for_testing(datetime.datetime(2016, 7, 4, 0, 0, 0)):
 
             now = hms_now()  # This will be converted to HMS time.
             # print("now=", now)
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00" + EDT,
-                                 "2016-07-04 00:01:00" + EDT)
+            assert in_datetime_interval(now,
+                                        start="2016-07-03 23:59:00" + tz_edt_offset,
+                                        end="2016-07-04 00:01:00" + tz_edt_offset)
 
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00" + EDT_ALT,
-                                 "2016-07-04 00:01:00" + EDT_ALT)
+            assert in_datetime_interval(now,
+                                        start="2016-07-03 23:59:00" + tz_edt_offset_alt,
+                                        end="2016-07-04 00:01:00" + tz_edt_offset_alt)
 
-            assert not in_date_range(now,
-                                     "2016-08-03 23:59:00" + EDT,
-                                     "2016-08-04 00:01:00" + EDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-08-03 23:59:00" + tz_edt_offset,
+                                            end="2016-08-04 00:01:00" + tz_edt_offset)
 
-            assert not in_date_range(now,
-                                     "2016-06-03 23:59:00" + EDT,
-                                     "2016-06-04 00:01:00" + EDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 23:59:00" + tz_edt_offset,
+                                            end="2016-06-04 00:01:00" + tz_edt_offset)
 
-            # If no timezone, US/Eastern (for HMS) is assumed.
-            # Dates between Sune and August are all in Daylight Time.
+            # If no timezone, local time is assumed, whether or not Daylight Time.
 
-            assert in_date_range(now,
-                                 "2016-06-03 23:59:00",
-                                 "2016-08-04 00:01:00")
+            now_local = now.replace(tzinfo=None)
+            # print("now(local time)=", now_local)
 
-            assert in_date_range(now,
-                                 "2016-07-03 23:59:00",
-                                 "2016-07-04 00:01:00")
+            assert in_datetime_interval(now_local,
+                                        start="2016-06-03 23:59:00",
+                                        end="2016-08-04 00:01:00")
 
-            assert not in_date_range(now,
-                                     "2016-08-03 23:59:00",
-                                     "2016-08-04 00:01:00")
+            assert in_datetime_interval(now_local,
+                                        start="2016-07-03 23:59:00",
+                                        end="2016-07-04 00:01:00")
 
-            assert not in_date_range(now,
-                                     "2016-06-03 23:59:00",
-                                     "2016-06-04 00:01:00")
+            assert not in_datetime_interval(now_local,
+                                            start="2016-08-03 23:59:00",
+                                            end="2016-08-04 00:01:00")
 
-            assert in_date_range(now,
-                                 "2016-06-03 23:59:00",
-                                 "2016-08-04 00:01:00")
+            assert not in_datetime_interval(now_local,
+                                            start="2016-06-03 23:59:00",
+                                            end="2016-06-04 00:01:00")
+
+            assert in_datetime_interval(now_local,
+                                        start="2016-06-03 23:59:00",
+                                        end="2016-08-04 00:01:00")
 
             # It would be weird to provide anything other than the HMS timezone, but it happens to work to do that.
-            assert not in_date_range(now,
-                                     "2016-06-03 22:59:00" + CDT,
-                                     "2016-06-03 23:01:00" + CDT)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 22:59:00" + tz_cdt_offset,
+                                            end="2016-06-03 23:01:00" + tz_cdt_offset)
 
         # This just makes sure that EDT/EST is accommodated by the hms_now() function,
         # though it will be separately tested, too.
@@ -466,20 +502,20 @@ class TestInternals(ApiTestCaseBase):
 
             now = hms_now()
             # print("now=", now)
-            assert in_date_range(now,
-                                 "2016-01-03 23:59:00" + EST,
-                                 "2016-01-04 00:01:00" + EST)
+            assert in_datetime_interval(now,
+                                        start="2016-01-03 23:59:00" + tz_est_offset,
+                                        end="2016-01-04 00:01:00" + tz_est_offset)
 
             # If no timezone, US/Eastern (for HMS) is assumed.
             # Dates between December and February are all in Standard Time.
-            assert in_date_range(now,
-                                 "2016-01-03 23:59:00",
-                                 "2016-01-04 00:01:00")
+            assert in_datetime_interval(now.replace(tzinfo=None),
+                                        start="2016-01-03 23:59:00",
+                                        end="2016-01-04 00:01:00")
 
             # It would be weird to provide anything other than the HMS timezone, but it happens to work to do that.
-            assert not in_date_range(now,
-                                     "2016-06-03 22:59:00" + CST,
-                                     "2016-06-03 23:01:00" + CST)
+            assert not in_datetime_interval(now,
+                                            start="2016-06-03 22:59:00" + tz_cst_offset,
+                                            end="2016-06-03 23:01:00" + tz_cst_offset)
 
     def test_hms_now(self):
 
@@ -487,20 +523,20 @@ class TestInternals(ApiTestCaseBase):
 
             assert str(hms_now()) == "2016-01-04 00:00:01-05:00"
 
-    def test_parse_datetime(self):
+    def test_as_datetime(self):
 
-        EST = "-0500"
-        EDT = "-0400"
+        tz_est_offset = "-0500"  # US/Eastern Standard Time (EST) - 5 hours offset from UTC
+        tz_edt_offset = "-0400"  # US/Eastern Daylight Time (EDT) - 4 hours offset from UTC
 
         time1 = HMS_TZ.localize(datetime.datetime(2016, 6, 3, 22, 59))
         time_str1 = "2016-06-03 22:59:00"
-        assert parse_datetime(time_str1 + EDT) == time1
-        assert parse_datetime(time_str1) == time1
+        assert as_datetime(time_str1 + tz_edt_offset) == time1
+        assert as_datetime(time_str1, tz=HMS_TZ) == time1
 
         time2 = HMS_TZ.localize(datetime.datetime(2016, 1, 3, 22, 59))
         time_str2 = "2016-01-03 22:59:00"
-        assert parse_datetime(time_str2 + EST) == time2
-        assert parse_datetime(time_str2) == time2
+        assert as_datetime(time_str2 + tz_est_offset) == time2
+        assert as_datetime(time_str2, tz=HMS_TZ) == time2
 
     def test_resolve_environment(self):
 

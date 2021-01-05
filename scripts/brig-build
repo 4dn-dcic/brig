@@ -48,7 +48,7 @@ else
     fi
 fi
 
-archive_name="$(date "+%m%d%H%M%Y%S")-${commit_id}.zip"
+archive_name="$(date "+%Y%m%d%H%M%S")-${commit_id}.zip"
 
 # Make a fresh stg dir to work with.
 
@@ -121,7 +121,11 @@ echo "Running unit tests..."
 
 pushd ../stg  > /dev/null
 
-PYTHONPATH=".:${PYTHONPATH}" pytest -vv
+# We name the test files in this directory specifically because we don't
+# want to descend into all the included libraries that may have test files
+# we don't want to run.
+
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 popd > /dev/null
 

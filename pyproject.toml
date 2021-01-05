@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "brig"
-version = "0.1"
+version = "0.2"
 description = "A psuedo-library wrapper for debugging lambda functionality."
 authors = ["4DN-DCIC Team <support@4dnucleome.org>"]
 license = "MIT"
@@ -27,10 +27,11 @@ include = [
 # in this envronment (which may be tricky to arrange in some cases), but should give PyCharm something to
 # use. For more reliable pre-deploy testing, use the brig-test script from within an individual function or
 # api folder. -kmp 5-Nov-2020
+dcicutils = ">=1.8.1"
 python = ">=3.6,<3.7"
-requests = ">=2.24.0"
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.4"
+requests = ">=2.24.0"
 
 [tool.poetry.dev-dependencies]
 pytest = ">=3.0.5,<4"

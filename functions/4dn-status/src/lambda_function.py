@@ -1,14 +1,12 @@
-import datetime
 import html
-import http
 import io
 import json
-import pytz
-import re
 import requests
 
-from datetime import datetime as datetime_type
-from dateutil.parser import parse as dateutil_parse
+from dcicutils.misc_utils import hms_now, as_datetime, in_datetime_interval, ignored, full_class_name
+from dcicutils.env_utils import (
+    classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env, is_cgap_env,
+)
 
 
 DEFAULT_COLOR = "#ccffcc"
@@ -27,36 +25,60 @@ DEFAULT_EVENT = {
    
 DEFAULT_DATA = {
     "bgcolor": DEFAULT_COLOR,
-    "events": [
+    "calendar": [
         DEFAULT_EVENT,
-    ],
+    ]
 }
 
 
-CALENDAR_DATA_URL = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
+CALENDAR_DATA_URL_PRD = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar.json"
+CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar-staged.json"
 
-def get_calendar_data():
+PRD_ENDPOINT_PATH = '/4dn-status'
+STG_ENDPOINT_PATH = '/4dn-status-staged'
+
+
+def get_calendar_data(staged=False):
+    url = CALENDAR_DATA_URL_STG if staged else CALENDAR_DATA_URL_PRD
+
     try:
-        r = requests.get(CALENDAR_DATA_URL)
+        r = requests.get(url)
+        r.raise_for_status()
         result = r.json()
         return result or DEFAULT_DATA
-    except Exception:
-        return DEFAULT_DATA
+    except Exception as e:
+        data = DEFAULT_DATA.copy()
+        data["problems"] = [
+            {"message": "%s: %s" % (full_class_name(e), e)}
+        ]
+        return data
+
+
+CGAP_LOGO_URL = "https://cgap.hms.harvard.edu/static/img/exported-logo.svg"
+FF_LOGO_URL = "https://data.4dnucleome.org/static/img/4dn_logo.svg"
 
 
 def convert_to_html(data, environment):
-    events = data['events']
+    if is_cgap_env(environment):
+        logo_url = CGAP_LOGO_URL
+        logo_url_alt = "CGAP helix logo"
+        page_name = "CGAP Status"
+    else:
+        logo_url = FF_LOGO_URL
+        logo_url_alt = "4DN sphere logo"
+        page_name = "Fourfront Status"
+    calendar_events = data['calendar']
     bgcolor = data['bgcolor']
     event_str = io.StringIO()
     sections_used = []
-    for i, event in enumerate(events, start=1):
-        # print("event=", event, "i=", i)
+    for i, event in enumerate(calendar_events, start=1):
+        # print("calendar_event=", calendar_event, "i=", i)
         event_name = event.get('name') or "Event %s" % i
         affects = event.get('affects') or {}
         affects_name = affects.get('name') or "All Systems"
-        affects_envs = affects.get('environments') or []
+        # affects_envs = affects.get('environments') or []
         section = io.StringIO()
-        section.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
+        section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
         section.write("<dd>\n")
         section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
         section.write(' <span class="when">(%s to %s)</span></p>\n' 
@@ -67,6 +89,13 @@ def convert_to_html(data, environment):
         event_str.write(section.getvalue())
         sections_used.append(i)
     event_body = event_str.getvalue()
+    substitutions = {
+        'BGCOLOR': bgcolor,
+        'LOGO_URL': logo_url,
+        'LOGO_URL_ALT': logo_url_alt,
+        'PAGE_NAME': page_name,
+        'EVENT_BODY': event_body,
+    }
     body = '''
 <!DOCTYPE html>
 <html>
@@ -76,9 +105,9 @@ def convert_to_html(data, environment):
    <style><!--
    .banner {padding-left: 30pt; background: <<BGCOLOR>>; padding-bottom: 10pt; padding-top: 10pt;}
    .page-name {padding-left: 10pt; font-size: 30pt;}
-   .logo {height: 100%; vertical-align: middle;}
-   .events {padding-left: 30pt;}
-   .event {font-size: 20pt;}
+   .logo {height: 100%; vertical-align: middle; height: 36pt;}
+   .calendar {padding-left: 30pt;}
+   .calendar-event {font-size: 20pt;}
    .who {font-weight: bold; font-size: 16pt;}
    .when {font-weight: bold; font-size: 14pt;}
    .what {font-weight: 12pt;}
@@ -88,68 +117,65 @@ def convert_to_html(data, environment):
   <div class="banner" id="banner">
    <table>
     <tr>
-     <td valign="middle"><img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" /></td>
-     <td class="page-name" valign="bottom">4DN Status</td>
+     <td valign="middle">
+      <img src="<<LOGO_URL>>" class="logo" alt="<<LOGO_URL_ALT>>" />
+     </td>
+     <td class="page-name" valign="bottom"><<PAGE_NAME>></td>
     </tr>
    </table>
   </div>
-  <dl class="events">
+  <dl class="calendar">
    <<EVENT_BODY>>
   </dl>
  </body>
 </html>'''
-    body = body.replace('<<BGCOLOR>>', bgcolor)
-    body = body.replace('<<EVENT_BODY>>', event_body)
+    for name, val in substitutions.items():
+        body = body.replace('<<' + name + '>>', val)
     return body
-    
-
-HMS_TZ = pytz.timezone("US/Eastern")
 
 
-def parse_datetime(dt):
-    if dt is None:
-        return None
-    try:
-        if not isinstance(dt, datetime_type):
-            dt = dateutil_parse(dt)
-        if not dt.tzinfo:
-            dt = HMS_TZ.localize(dt)
-        return dt
-    except Exception:
-        return None
-
-
-def in_date_range(now, start, end):
-    start = parse_datetime(start)
-    end = parse_datetime(end)
-    return (not start or start <= now) and (not end or end >= now)
-
-
-def hms_now():
-    now = datetime.datetime.now()
-    now_in_hms_tz = HMS_TZ.localize(now)
-    return now_in_hms_tz
-
-
-def filter_data(data, environment):
-    events = data.get("events") or []
+def filter_data(data, environment, debug=False, now=None):
+    calendar_events = data.get("calendar") or []
     bgcolor = data.get("bgcolor") or "#dddddd"
-    filtered = []
-    now = hms_now()
-    for event in events:
-        start_time = event.get('start_time', None)
-        end_time = event.get('end_time', None)
-        affected_envs = (event.get('affects') or {}).get('environments')
-        if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
-            if in_date_range(now, start_time, end_time):
-                filtered.append(event)
-    if not filtered:
+    filtered_calendar_events = []
+    filter_now = as_datetime(now, raise_error=False) or hms_now()
+    problems = data.get("problems", [])
+    seen = []
+    removed = []
+    for event in calendar_events:
+        try:
+            seen.append(event)
+            start_time = event.get('start_time', None)
+            end_time = event.get('end_time', None)
+            affected_envs = (event.get('affects') or {}).get('environments')
+            if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
+                # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
+                if in_datetime_interval(filter_now, start=start_time, end=end_time):
+                    filtered_calendar_events.append(event)
+                else:
+                    removed.append(event)
+        except Exception as e:
+            problems.append({
+                "event": event,
+                "message": "%s: %s" % (full_class_name(e), e),
+            })
+    result = {}
+    if debug:
+        result["now"] = now
+        result["filter_now"] = str(filter_now)
+        result["seen"] = seen
+        result["defaulted"] = False
+        result["removed"] = removed
+    if not filtered_calendar_events:
+        if debug:
+            result["defaulted"] = True
         bgcolor = DEFAULT_COLOR
-        filtered.append(DEFAULT_EVENT)
-    return {
-        "bgcolor": bgcolor,
-        "events": filtered
-    }
+        filtered_calendar_events.append(DEFAULT_EVENT)
+    result["bgcolor"] = bgcolor
+    result["calendar"] = filtered_calendar_events
+    if problems:
+        result["problems"] = problems
+    return result
 
 
 CORS_HEADERS = {
@@ -168,14 +194,11 @@ CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
 }
 
-# NOTE: This will treate http://mastertest-2.xxx/ as if it were just http://mastertest.xxx/
-#       so that a cloned system will behave like its twin. That probably doesn't matter
-#       a lot but was easy to do.
 
-REFERER_REGEXP = re.compile("https?[:][/][/](data|staging|cgap|fourfront-[a-z-]*[a-z])([-]?[0-9]+)?[.].*")
+def canonicalize_environment(environment):
+    # We implement canonical naming of these environments by using the bucket environment.
+    return get_bucket_env(environment)
 
-FOURFRONT_PROD_ENV = 'fourfront-webprod'
-CGAP_PROD_ENV = 'fourfront-cgap'
 
 def resolve_environment(referer, application, environment):
     """
@@ -193,48 +216,23 @@ def resolve_environment(referer, application, environment):
     if environment:
         return canonicalize_environment(environment)
     if referer:
-        m = REFERER_REGEXP.match(referer)
-        name = m.group(1)
-        if m:
-            if 'fourfront-' in name:
-                return name
-            elif 'cgap' in m.group(1):
-                return CGAP_PROD_ENV
-            else:
-                return FOURFRONT_PROD_ENV
+        classification = classify_server_url(referer, raise_error=False)
+        if classification['kind'] in ('fourfront', 'cgap'):
+            env = classification['environment']
+            env = env.strip('-0123456789')
+            return env
     if application == 'cgap':
-        return CGAP_PROD_ENV
+        return CGAP_PROD_BUCKET_ENV
     else:
-        return FOURFRONT_PROD_ENV
-
-
-def canonicalize_environment(environment):
-    """
-    NOTE WELL THAT THIS ENTIRE FACILITY BLURS THE DIFFERENCE BETWEEN GREEN AND BLUE,
-    so this function does so as well. Any name for a staging or production environment
-    is canonicalized to the canonical name of the CGAP prod env (fourfront-cgap)
-    or the canonical name of the FF prod env (fourfront-webprod).
-    """
-    if environment == 'fourfront-cgap':
-        # This is the only prod env that doesn't fit in the normal naming paradigms
-        return CGAP_PROD_ENV
-    elif 'blue' in environment or 'green' in environment or 'webprod' in environment:
-        # blue/green/webprod are the normal markers of a production env
-        if 'cgap' in environment:
-            # Must be a cgap env like fourfront-cgap-blue (future) or cgap-blue (future)
-            # or fourfront-webprod (old) or fourfront-webprod2 (old)
-            # or fourfront-blue (current) or fourfront-green (current)
-            #
-            # (BUT NOTE that we happen to use fourfront-webprod as the canonical exemplar)
-            return CGAP_PROD_ENV
-        else:
-            return FOURFRONT_PROD_ENV
-    else:
-        return environment
+        return FF_PROD_BUCKET_ENV
 
 
 def lambda_handler(event, context):
-    data = get_calendar_data()
+    ignored(context)  # This will be ignored unless the commented-out block below is uncommented.
+
+    staged = event.get("rawPath", PRD_ENDPOINT_PATH) == STG_ENDPOINT_PATH
+
+    data = get_calendar_data(staged=staged)
     params = event.get("queryStringParameters") or {}
 
     # It might be a security problem to leave this turned on in production, but it may be useful to enable
@@ -258,33 +256,40 @@ def lambda_handler(event, context):
     # The referer is available in a standard event packaging, in the headers,
     # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
 
-    application = params.get("application")
-    referer = event.get('headers', {}).get('referer')
-    environment = params.get("environment")
-    environment = resolve_environment(referer=referer, application=application, environment=environment)
-    data = filter_data(data, environment)
-    format = params.get("format") or "html"
-    if format == 'json':
-        result = {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=120",
-            },
-            "body": json.dumps(data, indent=2),
-        }
-    else:
-        result = {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": 'text/html',
-                "Cache-Control": "public, max-age=120",
-           },
-           "body": convert_to_html(data or [], environment)
-        }
-    result = dict(result, **CORS_HEADERS)
-    return result
+    try:
 
+        now = params.get("now", None)
+        debug = params.get("debug", "FALSE").upper() == "TRUE"
+        application = params.get("application")
+        referer = event.get('headers', {}).get('referer')
+        environment = params.get("environment")
+        environment = resolve_environment(referer=referer, application=application, environment=environment)
+        data = filter_data(data, environment, debug=debug, now=now)
+        response_format = params.get("format") or "html"
+        if response_format == 'json':
+            result = {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Cache-Control": "public, max-age=120",
+                },
+                "body": json.dumps(data, indent=2),
+            }
+        else:
+            result = {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": 'text/html',
+                    "Cache-Control": "public, max-age=120",
+                },
+                "body": convert_to_html(data or [], environment)
+            }
+        result = dict(result, **CORS_HEADERS)
+        return result
+
+    except Exception as e:
+
+        return {"message": "%s: %s" % (full_class_name(e), e)}
 
 
 if __name__ == '__main__':
