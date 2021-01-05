@@ -1,16 +1,12 @@
-# import datetime
 import html
-# import http
 import io
 import json
-# import pytz
-# import re
 import requests
 
-# from datetime import datetime as datetime_type
-# from dateutil.parser import parse as dateutil_parse
-from dcicutils.misc_utils import HMS_TZ, hms_now, as_datetime, in_datetime_interval, ignored
-from dcicutils.env_utils import classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env
+from dcicutils.misc_utils import hms_now, as_datetime, in_datetime_interval, ignored, full_class_name
+from dcicutils.env_utils import (
+    classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env, is_cgap_env,
+)
 
 
 DEFAULT_COLOR = "#ccffcc"
@@ -29,14 +25,14 @@ DEFAULT_EVENT = {
    
 DEFAULT_DATA = {
     "bgcolor": DEFAULT_COLOR,
-    "events": [
+    "calendar": [
         DEFAULT_EVENT,
-    ],
+    ]
 }
 
 
-CALENDAR_DATA_URL_PRD = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events.json"
-CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/events-staged.json"
+CALENDAR_DATA_URL_PRD = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar.json"
+CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar-staged.json"
 
 PRD_ENDPOINT_PATH = '/4dn-status'
 STG_ENDPOINT_PATH = '/4dn-status-staged'
@@ -47,26 +43,42 @@ def get_calendar_data(staged=False):
 
     try:
         r = requests.get(url)
+        r.raise_for_status()
         result = r.json()
         return result or DEFAULT_DATA
-    except Exception:
-        return DEFAULT_DATA
+    except Exception as e:
+        data = DEFAULT_DATA.copy()
+        data["problems"] = [
+            {"message": "%s: %s" % (full_class_name(e), e)}
+        ]
+        return data
+
+
+CGAP_LOGO_URL = "https://cgap.hms.harvard.edu/static/img/exported-logo.svg"
+FF_LOGO_URL = "https://data.4dnucleome.org/static/img/4dn_logo.svg"
 
 
 def convert_to_html(data, environment):
-    ignored(environment)  # TODO: Should this be ignored?
-    events = data['events']
+    if is_cgap_env(environment):
+        logo_url = CGAP_LOGO_URL
+        logo_url_alt = "CGAP helix logo"
+        page_name = "CGAP Status"
+    else:
+        logo_url = FF_LOGO_URL
+        logo_url_alt = "4DN sphere logo"
+        page_name = "Fourfront Status"
+    calendar_events = data['calendar']
     bgcolor = data['bgcolor']
     event_str = io.StringIO()
     sections_used = []
-    for i, event in enumerate(events, start=1):
-        # print("event=", event, "i=", i)
+    for i, event in enumerate(calendar_events, start=1):
+        # print("calendar_event=", calendar_event, "i=", i)
         event_name = event.get('name') or "Event %s" % i
         affects = event.get('affects') or {}
         affects_name = affects.get('name') or "All Systems"
         # affects_envs = affects.get('environments') or []
         section = io.StringIO()
-        section.write('<dt class="event">%s</dt>\n' % html.escape(event_name))
+        section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
         section.write("<dd>\n")
         section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
         section.write(' <span class="when">(%s to %s)</span></p>\n' 
@@ -77,6 +89,13 @@ def convert_to_html(data, environment):
         event_str.write(section.getvalue())
         sections_used.append(i)
     event_body = event_str.getvalue()
+    substitutions = {
+        'BGCOLOR': bgcolor,
+        'LOGO_URL': logo_url,
+        'LOGO_URL_ALT': logo_url_alt,
+        'PAGE_NAME': page_name,
+        'EVENT_BODY': event_body,
+    }
     body = '''
 <!DOCTYPE html>
 <html>
@@ -86,9 +105,9 @@ def convert_to_html(data, environment):
    <style><!--
    .banner {padding-left: 30pt; background: <<BGCOLOR>>; padding-bottom: 10pt; padding-top: 10pt;}
    .page-name {padding-left: 10pt; font-size: 30pt;}
-   .logo {height: 100%; vertical-align: middle;}
-   .events {padding-left: 30pt;}
-   .event {font-size: 20pt;}
+   .logo {height: 100%; vertical-align: middle; height: 36pt;}
+   .calendar {padding-left: 30pt;}
+   .calendar-event {font-size: 20pt;}
    .who {font-weight: bold; font-size: 16pt;}
    .when {font-weight: bold; font-size: 14pt;}
    .what {font-weight: 12pt;}
@@ -99,46 +118,64 @@ def convert_to_html(data, environment):
    <table>
     <tr>
      <td valign="middle">
-      <img src="https://4dnucleome.org/Assets/images/4dn-logo_1.png" class="logo" alt="4D Nucleome" />
+      <img src="<<LOGO_URL>>" class="logo" alt="<<LOGO_URL_ALT>>" />
      </td>
-     <td class="page-name" valign="bottom">4DN Status</td>
+     <td class="page-name" valign="bottom"><<PAGE_NAME>></td>
     </tr>
    </table>
   </div>
-  <dl class="events">
+  <dl class="calendar">
    <<EVENT_BODY>>
   </dl>
  </body>
 </html>'''
-    body = body.replace('<<BGCOLOR>>', bgcolor)
-    body = body.replace('<<EVENT_BODY>>', event_body)
+    for name, val in substitutions.items():
+        body = body.replace('<<' + name + '>>', val)
     return body
 
 
-def filter_data(data, environment):
-    events = data.get("events") or []
+def filter_data(data, environment, debug=False, now=None):
+    calendar_events = data.get("calendar") or []
     bgcolor = data.get("bgcolor") or "#dddddd"
-    filtered = []
-    now = hms_now()
-    for event in events:
+    filtered_calendar_events = []
+    filter_now = as_datetime(now, raise_error=False) or hms_now()
+    problems = data.get("problems", [])
+    seen = []
+    removed = []
+    for event in calendar_events:
         try:
+            seen.append(event)
             start_time = event.get('start_time', None)
             end_time = event.get('end_time', None)
             affected_envs = (event.get('affects') or {}).get('environments')
             if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
                 # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
-                if in_datetime_interval(now, start=start_time, end=end_time):
-                    filtered.append(event)
-        except Exception:
-            # If there is any malformed data or some othe program error while processing on, just skip to the next.
-            pass
-    if not filtered:
+                if in_datetime_interval(filter_now, start=start_time, end=end_time):
+                    filtered_calendar_events.append(event)
+                else:
+                    removed.append(event)
+        except Exception as e:
+            problems.append({
+                "event": event,
+                "message": "%s: %s" % (full_class_name(e), e),
+            })
+    result = {}
+    if debug:
+        result["now"] = now
+        result["filter_now"] = str(filter_now)
+        result["seen"] = seen
+        result["defaulted"] = False
+        result["removed"] = removed
+    if not filtered_calendar_events:
+        if debug:
+            result["defaulted"] = True
         bgcolor = DEFAULT_COLOR
-        filtered.append(DEFAULT_EVENT)
-    return {
-        "bgcolor": bgcolor,
-        "events": filtered
-    }
+        filtered_calendar_events.append(DEFAULT_EVENT)
+    result["bgcolor"] = bgcolor
+    result["calendar"] = filtered_calendar_events
+    if problems:
+        result["problems"] = problems
+    return result
 
 
 CORS_HEADERS = {
@@ -221,11 +258,13 @@ def lambda_handler(event, context):
 
     try:
 
+        now = params.get("now", None)
+        debug = params.get("debug", "FALSE").upper() == "TRUE"
         application = params.get("application")
         referer = event.get('headers', {}).get('referer')
         environment = params.get("environment")
         environment = resolve_environment(referer=referer, application=application, environment=environment)
-        data = filter_data(data, environment)
+        data = filter_data(data, environment, debug=debug, now=now)
         response_format = params.get("format") or "html"
         if response_format == 'json':
             result = {
@@ -250,7 +289,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
 
-        return {"message": "%s: %s" % (type(e), e)}
+        return {"message": "%s: %s" % (full_class_name(e), e)}
 
 
 if __name__ == '__main__':
