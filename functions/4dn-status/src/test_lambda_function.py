@@ -583,8 +583,8 @@ class TestInternals(ApiTestCaseBase):
 
     def test_resolve_environment(self):
 
-        def test(*, expected, referer=None, application=None, environment=None):
-            self.assertEqual(resolve_environment(referer=referer, application=application, environment=environment),
+        def test(*, expected, host=None, referer=None, application=None, environment=None):
+            self.assertEqual(resolve_environment(host=host, referer=referer, application=application, environment=environment),
                              expected)
 
         self.debug_print("Testing for no context.")
@@ -620,7 +620,17 @@ class TestInternals(ApiTestCaseBase):
             test(application=application, referer=CGAPTEST_SERVER, expected='fourfront-cgaptest')
             test(application=application, referer=CGAP_PRD_SERVER, expected='fourfront-cgap')
 
-        # The application can be specified and will take effect if there is no environment or referer.
+        # The host may resolve things if there is no referer
+
+        for application in ('cgap', 'fourfront', None):
+
+            self.debug_print("Testing referers with application=", application)
+
+            test(application=application, host='status.data.4dnucleome.org', expected='fourfront-webprod')
+            test(application=application, host='status.staging.4dnucleome.org', expected='fourfront-webprod')
+            test(application=application, host='status.cgap.hms.harvard.edu', expected='fourfront-cgap')
+
+        # The application can be specified and will take effect if there is no environment or referer or host.
         self.debug_print("Testing application.", application)
 
         test(application='cgap', expected='fourfront-cgap')

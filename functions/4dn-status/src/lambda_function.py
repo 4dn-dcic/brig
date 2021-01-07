@@ -5,7 +5,7 @@ import json
 import requests
 
 from dcicutils.misc_utils import (
-    hms_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds,
+    hms_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds, remove_prefix,
 )
 from dcicutils.env_utils import (
     classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env, is_cgap_env,
@@ -256,7 +256,7 @@ def canonicalize_environment(environment):
     return get_bucket_env(environment)
 
 
-def resolve_environment(referer, application, environment):
+def resolve_environment(host, referer, application, environment):
     """
     Given referer, application, and environment supplied with a request, figure out what environment to use.
 
@@ -273,6 +273,13 @@ def resolve_environment(referer, application, environment):
         return canonicalize_environment(environment)
     if referer:
         classification = classify_server_url(referer, raise_error=False)
+        if classification['kind'] in ('fourfront', 'cgap'):
+            env = classification['environment']
+            env = env.strip('-0123456789')
+            return env
+    if host and host.startswith("status."):
+        host_url = 'https://' + remove_prefix("status.", host)
+        classification = classify_server_url(host_url, raise_error=False)
         if classification['kind'] in ('fourfront', 'cgap'):
             env = classification['environment']
             env = env.strip('-0123456789')
@@ -317,9 +324,10 @@ def lambda_handler(event, context):
         now = params.get("now", None)
         debug = params.get("debug", "FALSE").upper() == "TRUE"
         application = params.get("application")
+        host = event.get('headers', {}).get('host')
         referer = event.get('headers', {}).get('referer')
         environment = params.get("environment")
-        environment = resolve_environment(referer=referer, application=application, environment=environment)
+        environment = resolve_environment(host=host, referer=referer, application=application, environment=environment)
         data = filter_data(data, environment, debug=debug, now=now)
         response_format = params.get("format") or "html"
         if response_format == 'json':
