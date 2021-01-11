@@ -8,8 +8,10 @@ from dcicutils.qa_utils import ControlledTime
 from unittest import mock
 from . import lambda_function as lambda_function_module
 from .lambda_function import (
-    lambda_handler, DEFAULT_EVENT, DEFAULT_DATA, get_calendar_data, CALENDAR_DATA_URL_PRD, resolve_environment,
-    CALENDAR_MISSING_COLOR, CALENDAR_MISSING_MESSAGE,
+    lambda_handler, DEFAULT_DATA, DEFAULT_DATA_EVENTS,
+    get_calendar_data, CALENDAR_DATA_URL_PRD, resolve_environment,
+    CALENDAR_MISSING_PRIORITY, CALENDAR_MISSING_MESSAGE,
+    PRIORITY_RED, PRIORITY_ORANGE, PRIORITY_GREEN, PRIORITY_YELLOW, merge_priorities,
 )
 
 
@@ -62,7 +64,7 @@ SAMPLE_FF_SYSTEM_UPGRADE = {
     "name": "Fourfront System Upgrades",
     "start_time": START_SAMPLE_BLOCK1,
     "end_time": END_SAMPLE_BLOCK1,
-    "message": "Systems may be unavailable.",
+    "description": "Systems may be unavailable.",
     "affects": {
         "name": "All Fourfront Systems",
         "environments": [
@@ -79,7 +81,7 @@ SAMPLE_FF_SUMMER_NOTICE = {
     "name": "Fourfront Mastertest Summer Shutdown",
     "start_time": START_SAMPLE_BLOCK2,
     "end_time": END_SAMPLE_BLOCK2,
-    "message": "We're all at the beach. Happy Summer!",
+    "description": "We're all at the beach. Happy Summer!",
     "affects": {
         "name": "Fourfront Mastertest Users",
         "environments": [
@@ -92,7 +94,7 @@ SAMPLE_CG_SUMMER_NOTICE = {
     "name": "CGAP Wolf Summer Shutdown",
     "start_time": START_SAMPLE_BLOCK2,
     "end_time": END_SAMPLE_BLOCK2,
-    "message": "We're all at the beach. Happy Summer!",
+    "description": "We're all at the beach. Happy Summer!",
     "affects": {
         "name": "CGAP Wolf Users",
         "environments": [
@@ -104,7 +106,7 @@ SAMPLE_CG_SUMMER_NOTICE = {
 SAMPLE_EVENTS = [SAMPLE_FF_SYSTEM_UPGRADE, SAMPLE_FF_SUMMER_NOTICE, SAMPLE_CG_SUMMER_NOTICE]
 
 SAMPLE_DATA = {
-    "bgcolor": "#ffcccc",
+    "priority": PRIORITY_RED,
     "calendar": SAMPLE_EVENTS
 }
 
@@ -229,71 +231,71 @@ class TestApi(ApiTestCase):
     def test_json_for_regular_hosts_various_ff(self):
         application = 'fourfront'
         scenarios = [
-            (1, None, BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1, None, BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (2, None, DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (3, None, AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (3, None, AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (11, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (11, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (22, 'fourfront-webprod', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (33, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (33, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
             # Synonym for fourfront-webprod
-            (1011, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1011, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (1033, 'fourfront-webprod2', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (1033, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1033, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
             # Synonym for fourfront-webprod
-            (2011, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (2011, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (2022, 'fourfront-green', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (3033, 'fourfront-green', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (3033, 'fourfront-green', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (111, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (111, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (222, 'fourfront-mastertest', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (333, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (333, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (1111, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (2222, 'fourfront-cgap', DURING_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (3333, 'fourfront-cgap', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1111, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (2222, 'fourfront-cgap', DURING_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (3333, 'fourfront-cgap', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (4, None, BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (5, None, DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (6, None, AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (4, None, BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (5, None, DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (6, None, AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (44, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (55, 'fourfront-webprod', DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (66, 'fourfront-webprod', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (44, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (55, 'fourfront-webprod', DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (66, 'fourfront-webprod', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (444, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (444, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
             (555, 'fourfront-mastertest', DURING_SAMPLE_BLOCK2, [SAMPLE_FF_SUMMER_NOTICE]),
-            (666, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (666, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (4444, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (5555, 'fourfront-cgap', DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (6666, 'fourfront-cgap', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (4444, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (5555, 'fourfront-cgap', DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (6666, 'fourfront-cgap', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (44444, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (44444, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
             (55555, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK2, [SAMPLE_CG_SUMMER_NOTICE]),
-            (66666, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (66666, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (7, None, BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (8, None, DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (9, None, AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (7, None, BEFORE_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (8, None, DURING_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (9, None, AFTER_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
 
-            (77, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (88, 'fourfront-webprod', DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (99, 'fourfront-webprod', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (77, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (88, 'fourfront-webprod', DURING_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (99, 'fourfront-webprod', AFTER_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
 
-            (777, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (777, 'fourfront-mastertest', BEFORE_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
             (888, 'fourfront-mastertest', DURING_SAMPLE_BLOCK3, [SAMPLE_FF_SUMMER_NOTICE]),
-            (999, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (999, 'fourfront-mastertest', AFTER_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
 
-            (7777, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (8888, 'fourfront-cgap', DURING_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
-            (9999, 'fourfront-cgap', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (7777, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (8888, 'fourfront-cgap', DURING_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
+            (9999, 'fourfront-cgap', AFTER_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
 
-            (77777, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (77777, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
             (88888, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK3, [SAMPLE_CG_SUMMER_NOTICE]),
-            (99999, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK3, [DEFAULT_EVENT]),
+            (99999, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK3, DEFAULT_DATA_EVENTS),
 
         ]
         for n, environment, base_time, expected_events in scenarios:
@@ -311,47 +313,47 @@ class TestApi(ApiTestCase):
     def test_json_for_regular_hosts_various_cgap(self):
         application = 'cgap'
         scenarios = [
-            (1, None, BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (2, None, DURING_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (3, None, AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1, None, BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (2, None, DURING_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (3, None, AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (11, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (22, 'fourfront-cgap', DURING_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (33, 'fourfront-cgap', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (11, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (22, 'fourfront-cgap', DURING_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (33, 'fourfront-cgap', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (111, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (222, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
-            (333, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (111, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (222, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
+            (333, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (1111, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (1111, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (2222, 'fourfront-webprod', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (3333, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (3333, 'fourfront-webprod', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
             # Synonym for fourfront-webprod
-            (101111, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (101111, 'fourfront-webprod2', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (102222, 'fourfront-webprod2', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (103333, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (103333, 'fourfront-webprod2', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
             # Synonym for fourfront-webprod
-            (201111, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (201111, 'fourfront-green', BEFORE_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
             (202222, 'fourfront-green', DURING_SAMPLE_BLOCK1, [SAMPLE_FF_SYSTEM_UPGRADE]),
-            (203333, 'fourfront-green', AFTER_SAMPLE_BLOCK1, [DEFAULT_EVENT]),
+            (203333, 'fourfront-green', AFTER_SAMPLE_BLOCK1, DEFAULT_DATA_EVENTS),
 
-            (4, None, BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (5, None, DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (6, None, AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (4, None, BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (5, None, DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (6, None, AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (44, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (55, 'fourfront-cgap', DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (66, 'fourfront-cgap', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (44, 'fourfront-cgap', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (55, 'fourfront-cgap', DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (66, 'fourfront-cgap', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (444, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (444, 'fourfront-cgapwolf', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
             (555, 'fourfront-cgapwolf', DURING_SAMPLE_BLOCK2, [SAMPLE_CG_SUMMER_NOTICE]),
-            (666, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (666, 'fourfront-cgapwolf', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
 
-            (4444, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (5555, 'fourfront-webprod', DURING_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
-            (6666, 'fourfront-webprod', AFTER_SAMPLE_BLOCK2, [DEFAULT_EVENT]),
+            (4444, 'fourfront-webprod', BEFORE_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (5555, 'fourfront-webprod', DURING_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
+            (6666, 'fourfront-webprod', AFTER_SAMPLE_BLOCK2, DEFAULT_DATA_EVENTS),
         ]
         for n, environment, base_time, expected_events in scenarios:
             self.debug_print("n=", n)
@@ -405,6 +407,38 @@ class TestApi(ApiTestCase):
 
 class TestInternals(ApiTestCaseBase):
 
+    def test_merge_bgstyles(self):
+
+        assert merge_priorities("abc", PRIORITY_RED) == "red"
+        assert merge_priorities(PRIORITY_RED, "abc") == "red"
+        assert merge_priorities("xyz", PRIORITY_RED) == "red"
+        assert merge_priorities(PRIORITY_RED, "xyz") == "red"
+
+        assert merge_priorities("abc", PRIORITY_GREEN) == "orange"
+        assert merge_priorities(PRIORITY_GREEN, "abc") == "orange"
+        assert merge_priorities("xyz", PRIORITY_GREEN) == "orange"
+        assert merge_priorities(PRIORITY_GREEN, "xyz") == "orange"
+
+        assert merge_priorities(PRIORITY_RED, PRIORITY_RED) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_RED, PRIORITY_ORANGE) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_RED, PRIORITY_YELLOW) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_RED, PRIORITY_GREEN) == PRIORITY_RED
+
+        assert merge_priorities(PRIORITY_ORANGE, PRIORITY_RED) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_ORANGE, PRIORITY_ORANGE) == PRIORITY_ORANGE
+        assert merge_priorities(PRIORITY_ORANGE, PRIORITY_YELLOW) == PRIORITY_ORANGE
+        assert merge_priorities(PRIORITY_ORANGE, PRIORITY_GREEN) == PRIORITY_ORANGE
+
+        assert merge_priorities(PRIORITY_YELLOW, PRIORITY_RED) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_YELLOW, PRIORITY_ORANGE) == PRIORITY_ORANGE
+        assert merge_priorities(PRIORITY_YELLOW, PRIORITY_YELLOW) == PRIORITY_YELLOW
+        assert merge_priorities(PRIORITY_YELLOW, PRIORITY_GREEN) == PRIORITY_YELLOW
+
+        assert merge_priorities(PRIORITY_GREEN, PRIORITY_RED) == PRIORITY_RED
+        assert merge_priorities(PRIORITY_GREEN, PRIORITY_ORANGE) == PRIORITY_ORANGE
+        assert merge_priorities(PRIORITY_GREEN, PRIORITY_YELLOW) == PRIORITY_YELLOW
+        assert merge_priorities(PRIORITY_GREEN, PRIORITY_GREEN) == PRIORITY_GREEN
+
     def test_get_calendar_data(self):
 
         with mock.patch("requests.get") as mock_get:
@@ -432,7 +466,7 @@ class TestInternals(ApiTestCaseBase):
                 "calendar": [],
                 "problems": [{"message": "RuntimeError: Simulated HTTP request error."}],
                 "message": CALENDAR_MISSING_MESSAGE,
-                "bgcolor": CALENDAR_MISSING_COLOR,
+                "priority": CALENDAR_MISSING_PRIORITY,
             }
             self.assertEqual(get_calendar_data(), expected_data)
 
@@ -441,7 +475,7 @@ class TestInternals(ApiTestCaseBase):
                 "calendar": [],
                 "problems": [{"message": "RuntimeError: Some sort of error happened."}],
                 "message": CALENDAR_MISSING_MESSAGE,
-                "bgcolor": CALENDAR_MISSING_COLOR,
+                "priority": CALENDAR_MISSING_PRIORITY,
             }
             self.assertEqual(get_calendar_data(), expected_data)
 
@@ -549,8 +583,8 @@ class TestInternals(ApiTestCaseBase):
 
     def test_resolve_environment(self):
 
-        def test(*, expected, referer=None, application=None, environment=None):
-            self.assertEqual(resolve_environment(referer=referer, application=application, environment=environment),
+        def test(*, expected, host=None, referer=None, application=None, environment=None):
+            self.assertEqual(resolve_environment(host=host, referer=referer, application=application, environment=environment),
                              expected)
 
         self.debug_print("Testing for no context.")
@@ -586,7 +620,17 @@ class TestInternals(ApiTestCaseBase):
             test(application=application, referer=CGAPTEST_SERVER, expected='fourfront-cgaptest')
             test(application=application, referer=CGAP_PRD_SERVER, expected='fourfront-cgap')
 
-        # The application can be specified and will take effect if there is no environment or referer.
+        # The host may resolve things if there is no referer
+
+        for application in ('cgap', 'fourfront', None):
+
+            self.debug_print("Testing referers with application=", application)
+
+            test(application=application, host='status.data.4dnucleome.org', expected='fourfront-webprod')
+            test(application=application, host='status.staging.4dnucleome.org', expected='fourfront-webprod')
+            test(application=application, host='status.cgap.hms.harvard.edu', expected='fourfront-cgap')
+
+        # The application can be specified and will take effect if there is no environment or referer or host.
         self.debug_print("Testing application.", application)
 
         test(application='cgap', expected='fourfront-cgap')

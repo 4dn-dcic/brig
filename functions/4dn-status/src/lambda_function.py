@@ -1,17 +1,42 @@
+import datetime
 import html
 import io
 import json
 import requests
 
-from dcicutils.misc_utils import hms_now, as_datetime, in_datetime_interval, ignored, full_class_name
+from dcicutils.misc_utils import (
+    hms_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds, remove_prefix,
+)
 from dcicutils.env_utils import (
     classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env, is_cgap_env,
 )
 
 
-DEFAULT_COLOR = "#ccffcc"
+PRIORITY_RED = 'red'
+PRIORITY_ORANGE = 'orange'
+PRIORITY_YELLOW = 'yellow'
+PRIORITY_GREEN = 'green'
 
-DEFAULT_EVENT = {
+DEFAULT_PRIORITY = PRIORITY_GREEN
+
+ALL_PRIORITY_NAMES = [PRIORITY_GREEN, PRIORITY_YELLOW, PRIORITY_ORANGE, PRIORITY_RED]
+
+PRIORITY_ORANGE_VALUE = ALL_PRIORITY_NAMES.index(PRIORITY_ORANGE)
+
+
+def priority_value(priority):
+    try:
+        return ALL_PRIORITY_NAMES.index(priority)
+    except Exception:
+        return PRIORITY_ORANGE_VALUE
+
+
+def merge_priorities(*priorities):
+    priority = max(map(priority_value, priorities))
+    return ALL_PRIORITY_NAMES[priority]
+
+
+NULL_EVENT = {
     "name": "No Scheduled Events",
     "start_time": None,
     "end_time": None,
@@ -22,14 +47,11 @@ DEFAULT_EVENT = {
     }
 }
 
-   
-DEFAULT_DATA = {
-    "bgcolor": DEFAULT_COLOR,
-    "calendar": [
-        DEFAULT_EVENT,
-    ]
-}
+DEFAULT_DATA_EVENTS = []
 
+DEFAULT_DATA = {
+    "calendar": DEFAULT_DATA_EVENTS,
+}
 
 CALENDAR_DATA_URL_PRD = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar.json"
 CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-status/calendar-staged.json"
@@ -37,9 +59,9 @@ CALENDAR_DATA_URL_STG = "https://4dn-dcic-publicly-served.s3.amazonaws.com/4dn-s
 PRD_ENDPOINT_PATH = '/4dn-status'
 STG_ENDPOINT_PATH = '/4dn-status-staged'
 
-
 CALENDAR_MISSING_MESSAGE = "Calendar data is unavailable."
-CALENDAR_MISSING_COLOR = "#ffdddd"
+CALENDAR_MISSING_PRIORITY = PRIORITY_RED
+
 
 def get_calendar_data(staged=False):
     url = CALENDAR_DATA_URL_STG if staged else CALENDAR_DATA_URL_PRD
@@ -51,14 +73,12 @@ def get_calendar_data(staged=False):
         return result or DEFAULT_DATA
     except Exception as e:
         data = {
+            "priority": CALENDAR_MISSING_PRIORITY,
             "calendar": [],
-            "problems": [
-                {
-                    "message": "%s: %s" % (full_class_name(e), e)
-                }
-            ],
             "message": CALENDAR_MISSING_MESSAGE,
-            "bgcolor": CALENDAR_MISSING_COLOR,
+            "problems": [{
+                "message": "%s: %s" % (full_class_name(e), e)
+            }],
         }
         return data
 
@@ -76,33 +96,36 @@ def convert_to_html(data, environment):
         logo_url = FF_LOGO_URL
         logo_url_alt = "4DN sphere logo"
         page_name = "Fourfront Status"
-    calendar_events = data.get('calendar', [])
-    bgcolor = data.get('bgcolor', 'white')
-    message = data.get('message')
+
+    message = data.get("message")
+    calendar_events = data.get('calendar')
+    if not calendar_events and not message:
+        # When there's no error message to shown, supply a default event if nothing else to show.
+        calendar_events = [NULL_EVENT]
+    priority = data.get('priority') or DEFAULT_PRIORITY
     event_str = io.StringIO()
     sections_used = []
-    if not message:
-        for i, event in enumerate(calendar_events, start=1):
-            # print("calendar_event=", calendar_event, "i=", i)
-            event_name = event.get('name') or "Event %s" % i
-            affects = event.get('affects') or {}
-            affects_name = affects.get('name') or "All Systems"
-            # affects_envs = affects.get('environments') or []
-            section = io.StringIO()
-            section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
-            section.write("<dd>\n")
-            section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
-            section.write(' <span class="when">(%s to %s)</span></p>\n'
-                          % (html.escape(event.get('start_time') or "now"),
-                             html.escape(event.get('end_time') or "the foreseeable future")))
-            section.write('<p class="what">%s</p>\n' % (html.escape(event.get('message') or "To Be Determined")))
-            section.write("</dt>\n")
-            event_str.write(section.getvalue())
-            sections_used.append(i)
+    for i, event in enumerate(calendar_events, start=1):
+        # print("calendar_event=", calendar_event, "i=", i)
+        event_name = event.get('name') or "Event %s" % i
+        affects = event.get('affects') or {}
+        affects_name = affects.get('name') or ""
+        # affects_envs = affects.get('environments') or []
+        section = io.StringIO()
+        section.write('<dt class="calendar-event">%s</dt>\n' % html.escape(event_name))
+        section.write("<dd>\n")
+        section.write('<p><span class="who">%s</span>' % html.escape(affects_name))
+        section.write(' <span class="when">(%s to %s)</span></p>\n'
+                      % (html.escape(event.get('start_time') or "now"),
+                         html.escape(event.get('end_time') or "the foreseeable future")))
+        section.write('<p class="what">%s</p>\n' % (html.escape(event.get("description") or "To Be Determined")))
+        section.write("</dt>\n")
+        event_str.write(section.getvalue())
+        sections_used.append(i)
     event_body = event_str.getvalue()
-    message = '<div class="message"><p>NOTE: ' + message + '</p></div>' if message else ''
+    message = '<div class="message bgcolor_orange"><p>NOTE: ' + html.escape(message) + '</p></div>' if message else ''
     substitutions = {
-        'BGCOLOR': bgcolor,
+        'PRIORITY': priority,
         'LOGO_URL': logo_url,
         'LOGO_URL_ALT': logo_url_alt,
         'PAGE_NAME': page_name,
@@ -116,7 +139,11 @@ def convert_to_html(data, environment):
   <title>4DN Status</title>
    <meta name="robots" content="noindex, nofollow" />
    <style><!--
-   .banner {padding-left: 30pt; background: <<BGCOLOR>>; padding-bottom: 10pt; padding-top: 10pt;}
+   .bgcolor_red {background: #ffdddd}
+   .bgcolor_orange {background: #ffeedd}
+   .bgcolor_yellow {background: #ffffdd}
+   .bgcolor_green {background: #ddffdd}
+   .banner {padding-left: 30pt; padding-bottom: 10pt; padding-top: 10pt;}
    .page-name {padding-left: 10pt; font-size: 30pt;}
    .logo {height: 100%; vertical-align: middle; height: 36pt;}
    .calendar {padding-left: 30pt;}
@@ -124,12 +151,12 @@ def convert_to_html(data, environment):
    .who {font-weight: bold; font-size: 16pt;}
    .when {font-weight: bold; font-size: 14pt;}
    .what {font-size: 12pt;}
-   div.message {margin-top: 5pt; padding-left: 30pt; border: 1pt red solid; width: 500pt; background: #ffeedd;}
+   div.message {margin-top: 5pt; padding-left: 30pt; border: 1pt red solid; width: 500pt;}
    div.message p {font-weight: bold;}
   --></style>
  </head>
  <body>
-  <div class="banner" id="banner">
+  <div class="banner bgcolor_<<PRIORITY>>" id="banner">
    <table>
     <tr>
      <td valign="middle">
@@ -150,13 +177,16 @@ def convert_to_html(data, environment):
     return body
 
 
-def filter_data(data, environment, debug=False, now=None):
+def filter_data(data, environment, *, debug=False, now=None):
     calendar_events = data.get("calendar") or []
-    bgcolor = data.get("bgcolor") or "#dddddd"
+    priority = DEFAULT_PRIORITY
+    # "message" and "problems" are not intended to be used in ordinary calendar.json file.
+    # Instead they're used for error handling if the calendar is not available
+    # and must be propagated so the end user will understand why data was unavailable.
     message = data.get("message")
+    problems = data.get("problems", [])
     filtered_calendar_events = []
     filter_now = as_datetime(now, raise_error=False) or hms_now()
-    problems = data.get("problems", [])
     seen = []
     removed = []
     for event in calendar_events:
@@ -166,9 +196,21 @@ def filter_data(data, environment, debug=False, now=None):
             end_time = event.get('end_time', None)
             affected_envs = (event.get('affects') or {}).get('environments')
             if affected_envs is None or environment in map(canonicalize_environment, affected_envs):
-                # TODO: It's possible the datetime will be ill-formed, in which case an error will be raised
+                if start_time:
+                    start_time = as_ref_datetime(start_time)
+                    lead_time = event.get('lead_time') or {}
+                    if lead_time:
+                        if isinstance(lead_time, dict):
+                            # "lead_time": {"hours": 1, "minutes": 30}
+                            lead_seconds = as_seconds(**lead_time)
+                        else:
+                            # "lead_time": 5400
+                            lead_seconds = lead_time
+                        # This operation affects only the filtering, but not the display.
+                        start_time -= datetime.timedelta(seconds=lead_seconds)
                 if in_datetime_interval(filter_now, start=start_time, end=end_time):
                     filtered_calendar_events.append(event)
+                    priority = merge_priorities(priority, event.get("priority"))
                 else:
                     removed.append(event)
         except Exception as e:
@@ -183,12 +225,7 @@ def filter_data(data, environment, debug=False, now=None):
         result["seen"] = seen
         result["defaulted"] = False
         result["removed"] = removed
-    if not filtered_calendar_events and not message:
-        if debug:
-            result["defaulted"] = True
-        bgcolor = DEFAULT_COLOR
-        filtered_calendar_events.append(DEFAULT_EVENT)
-    result["bgcolor"] = bgcolor
+    result["priority"] = priority
     if message:
         result["message"] = message
     result["calendar"] = filtered_calendar_events
@@ -219,7 +256,7 @@ def canonicalize_environment(environment):
     return get_bucket_env(environment)
 
 
-def resolve_environment(referer, application, environment):
+def resolve_environment(host, referer, application, environment):
     """
     Given referer, application, and environment supplied with a request, figure out what environment to use.
 
@@ -236,6 +273,13 @@ def resolve_environment(referer, application, environment):
         return canonicalize_environment(environment)
     if referer:
         classification = classify_server_url(referer, raise_error=False)
+        if classification['kind'] in ('fourfront', 'cgap'):
+            env = classification['environment']
+            env = env.strip('-0123456789')
+            return env
+    if host and host.startswith("status."):
+        host_url = 'https://' + remove_prefix("status.", host)
+        classification = classify_server_url(host_url, raise_error=False)
         if classification['kind'] in ('fourfront', 'cgap'):
             env = classification['environment']
             env = env.strip('-0123456789')
@@ -280,9 +324,10 @@ def lambda_handler(event, context):
         now = params.get("now", None)
         debug = params.get("debug", "FALSE").upper() == "TRUE"
         application = params.get("application")
+        host = event.get('headers', {}).get('host')
         referer = event.get('headers', {}).get('referer')
         environment = params.get("environment")
-        environment = resolve_environment(referer=referer, application=application, environment=environment)
+        environment = resolve_environment(host=host, referer=referer, application=application, environment=environment)
         data = filter_data(data, environment, debug=debug, now=now)
         response_format = params.get("format") or "html"
         if response_format == 'json':
