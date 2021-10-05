@@ -5,10 +5,10 @@ import json
 import requests
 
 from dcicutils.misc_utils import (
-    hms_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds, remove_prefix,
+    ref_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds, remove_prefix,
 )
 from dcicutils.env_utils import (
-    classify_server_url, FF_PROD_BUCKET_ENV, CGAP_PROD_BUCKET_ENV, get_bucket_env, is_cgap_env,
+    classify_server_url, prod_bucket_env_for_app, get_bucket_env, is_cgap_env,
 )
 
 
@@ -284,10 +284,7 @@ def resolve_environment(host, referer, application, environment):
             env = classification['environment']
             env = env.strip('-0123456789')
             return env
-    if application == 'cgap':
-        return CGAP_PROD_BUCKET_ENV
-    else:
-        return FF_PROD_BUCKET_ENV
+    return prod_bucket_env_for_app(application)
 
 
 def lambda_handler(event, context):
