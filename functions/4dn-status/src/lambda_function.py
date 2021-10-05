@@ -7,9 +7,7 @@ import requests
 from dcicutils.misc_utils import (
     ref_now, as_datetime, in_datetime_interval, ignored, full_class_name, as_ref_datetime, as_seconds, remove_prefix,
 )
-from dcicutils.env_utils import (
-    classify_server_url, prod_bucket_env_for_app, get_bucket_env, is_cgap_env,
-)
+from dcicutils.env_utils import classify_server_url, prod_bucket_env_for_app, get_bucket_env, is_cgap_env
 
 
 PRIORITY_RED = 'red'
