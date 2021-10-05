@@ -186,7 +186,7 @@ def filter_data(data, environment, *, debug=False, now=None):
     message = data.get("message")
     problems = data.get("problems", [])
     filtered_calendar_events = []
-    filter_now = as_datetime(now, raise_error=False) or hms_now()
+    filter_now = as_datetime(now, raise_error=False) or ref_now()
     seen = []
     removed = []
     for event in calendar_events:
