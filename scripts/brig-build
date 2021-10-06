@@ -78,7 +78,7 @@ find stg -name "*.pyc" -delete
 
 rm -rf venv
 
-pyenv exec python -m venv venv
+pyenv exec python -m venv venv || python3 -m venv venv
 
 ls -dal venv
 
