@@ -72,12 +72,18 @@ echo  "Current directory: "`pwd`
 
 echo "Building zip ${archive_name} ..."
 
+ls -dal `pwd`/src/*
+
 if [ ! -f 'src/test_lambda_function.py' ]; then
   echo "Missing test file in `pwd`/src before cp -Rp src/ stg/ "
   exit 1
 fi
 
-cp -Rp src/ stg/
+# cp -Rp src/ stg/
+
+rsync -R src/* stg/
+
+ls -dal `pwd`/stg/*
 
 if [ ! -f 'stg/test_lambda_function.py' ]; then
   echo "Missing test file in `pwd`/stg after cp -Rp src/ stg/ "
