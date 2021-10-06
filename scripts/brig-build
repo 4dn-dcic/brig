@@ -72,27 +72,15 @@ echo  "Current directory: "`pwd`
 
 echo "Building zip ${archive_name} ..."
 
-ls -dal `pwd`/src/*
-
-if [ ! -f 'src/test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd`/src before cp -Rp src/ stg/ "
-  exit 1
-fi
-
-# cp -Rp src/ stg/
-
 pushd src > /dev/null
 
 rsync -R * ../stg/
 
 popd > /dev/null
 
-ls -dal `pwd`/stg/*
+echo "src/ has been copied to stg/ ..."
 
-if [ ! -f 'stg/test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd`/stg after cp -Rp src/ stg/ "
-  exit 1
-fi
+ls -dal `pwd`/stg/*
 
 find stg -name "*.pyc" -delete
 
@@ -111,19 +99,9 @@ pushd stg > /dev/null
 
 if [ -e "../requirements.txt" ]; then
 
-    if [ ! -f 'test_lambda_function.py' ]; then
-      echo "Missing test file in `pwd` before pip install -t "
-      exit 1
-    fi
-
     echo "Installing requirements ..."
 
     pip install --ignore-installed --no-clean -r ../requirements.txt -t ./
-
-    if [ ! -f 'test_lambda_function.py' ]; then
-      echo "Missing test file in `pwd` after pip install -t "
-      exit 1
-    fi
 
     echo "Requirements installed."
 
@@ -135,29 +113,13 @@ fi
 
 chmod -R 755 .
 
-if [ ! -f 'test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd` before zip"
-  exit 1
-fi
-
 zip -r ../${archive_name} .
-
-if [ ! -f 'test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd` after zip"
-  exit 1
-fi
-
 
 popd  > /dev/null
 
 echo "Activating $(pwd)/venv ..."
 
 source venv/bin/activate
-
-if [ ! -f 'stg/test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd`/stg after activation of venv"
-  exit 1
-fi
 
 # This environment is for testing, not for production
 
@@ -182,18 +144,11 @@ echo "Running unit tests..."
 
 pushd ../stg  > /dev/null
 
-if [ ! -f 'test_lambda_function.py' ]; then
-  echo "Missing test file in `pwd` just before running pytest"
-  exit 1
-fi
-
 # We name the test files in this directory specifically because we don't
 # want to descend into all the included libraries that may have test files
 # we don't want to run.
 
-echo "current dir = "`pwd`
-
-ls -dal `pwd`/*
+echo "current dir for testing = "`pwd`
 
 PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
