@@ -113,6 +113,11 @@ echo "Activating $(pwd)/venv ..."
 
 source venv/bin/activate
 
+if [ ! -f 'stg/test_lambda_function.py' ]; then
+  echo "Missing test file"
+  exit 1
+fi
+
 # This environment is for testing, not for production
 
 pip install --upgrade pip
@@ -120,6 +125,11 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 pip install pytest
+
+if [ ! -f 'stg/test_lambda_function.py' ]; then
+  echo "Missing test file"
+  exit 1
+fi
 
 mv "${archive_name}" builds/
 
@@ -130,6 +140,11 @@ ln -f -s "${archive_name}" staged
 echo "Running unit tests..."
 
 pushd ../stg  > /dev/null
+
+if [ ! -f 'test_lambda_function.py' ]; then
+  echo "Missing test file"
+  exit 1
+fi
 
 # We name the test files in this directory specifically because we don't
 # want to descend into all the included libraries that may have test files
