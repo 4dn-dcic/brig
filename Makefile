@@ -1,4 +1,4 @@
-.PHONY: test
+.PHONY: test test-for-ga
 
 clear-poetry-cache:  # clear poetry/pypi cache. for user to do explicitly, never automatic
 	poetry cache clear pypi --all
