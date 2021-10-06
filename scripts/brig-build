@@ -10,13 +10,6 @@ fi
 do_build=TRUE
 testonly=
 
-pytester=`which pytest`
-
-if [ -z "$pytester" ]; then
-  echo "pytest is not defined."
-  exit 1
-fi
-
 if [ "$1" = "--testonly" ]; then
     testonly=TRUE
     do_build=
@@ -87,13 +80,9 @@ rm -rf venv
 
 pyenv exec python -m venv venv || python3 -m venv venv
 
-source venv/bin/activate
-
-ls -dal venv
-
 echo "Upgrading pip ..."
 
-install --upgrade pip
+pip install --upgrade pip
 
 pushd stg > /dev/null
 
@@ -124,6 +113,10 @@ echo "Activating $(pwd)/venv ..."
 
 source venv/bin/activate
 
+pip install -r requirements.txt
+
+pip install pytest
+
 mv "${archive_name}" builds/
 
 pushd builds/ > /dev/null
@@ -138,7 +131,7 @@ pushd ../stg  > /dev/null
 # want to descend into all the included libraries that may have test files
 # we don't want to run.
 
-PYTHONPATH=".:${PYTHONPATH}" $pytester -vv test_*.py
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 if [ $? -ne 0 ]; then
 
