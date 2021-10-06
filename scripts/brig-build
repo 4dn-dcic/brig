@@ -101,7 +101,7 @@ if [ -e "../requirements.txt" ]; then
 
     echo "Installing requirements ..."
 
-    pip install --ignore-installed --no-clean -r ../requirements.txt -t ./
+    pip install -r ../requirements.txt -t ./
 
     echo "Requirements installed."
 
@@ -123,11 +123,11 @@ source venv/bin/activate
 
 # This environment is for testing, not for production
 
-pip install --no-clean --upgrade pip
+pip install --upgrade pip
 
-pip install --no-clean -r requirements.txt
+pip install -r requirements.txt
 
-pip install --no-clean pytest
+pip install pytest
 
 if [ ! -f 'stg/test_lambda_function.py' ]; then
   echo "Missing test file in `pwd`/stg after installing into venv"
