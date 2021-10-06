@@ -1,2 +1,2 @@
-brig-build --testonly
+$(dirname $0)/brig-build --testonly
 
