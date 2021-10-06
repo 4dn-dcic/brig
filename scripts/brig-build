@@ -10,6 +10,12 @@ fi
 do_build=TRUE
 testonly=
 
+pytester=`which pytest`
+
+if [ -z "$pytester" ]; then
+  echo "pytest is not defined."
+fi
+
 if [ "$1" = "--testonly" ]; then
     testonly=TRUE
     do_build=
@@ -129,7 +135,7 @@ pushd ../stg  > /dev/null
 # want to descend into all the included libraries that may have test files
 # we don't want to run.
 
-PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
+PYTHONPATH=".:${PYTHONPATH}" $pytester -vv test_*.py
 
 if [ $? -ne 0 ]; then
 
