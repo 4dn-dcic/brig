@@ -113,9 +113,11 @@ echo "Activating $(pwd)/venv ..."
 
 source venv/bin/activate
 
-pip install -r requirements.txt
+# This environment is for testing, not for production
 
-pip install pytest
+pip install --upgrade pip
+
+pip install pytest -r requirements.txt
 
 mv "${archive_name}" builds/
 
