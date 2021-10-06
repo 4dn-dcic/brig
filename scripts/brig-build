@@ -80,6 +80,8 @@ rm -rf venv
 
 pyenv exec python -m venv venv
 
+ls -dal venv
+
 echo "Upgrading pip ..."
 
 pip install --upgrade pip
@@ -111,7 +113,7 @@ popd  > /dev/null
 
 echo "Activating $(pwd)/venv ..."
 
-. venv/bin/activate
+source venv/bin/activate
 
 mv "${archive_name}" builds/
 
