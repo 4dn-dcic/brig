@@ -14,6 +14,7 @@ pytester=`which pytest`
 
 if [ -z "$pytester" ]; then
   echo "pytest is not defined."
+  exit 1
 fi
 
 if [ "$1" = "--testonly" ]; then
@@ -86,11 +87,13 @@ rm -rf venv
 
 pyenv exec python -m venv venv || python3 -m venv venv
 
+source venv/bin/activate
+
 ls -dal venv
 
 echo "Upgrading pip ..."
 
-pip install --upgrade pip
+install --upgrade pip
 
 pushd stg > /dev/null
 
