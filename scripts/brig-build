@@ -74,6 +74,11 @@ echo "Building zip ${archive_name} ..."
 
 cp -Rp src/ stg/
 
+if [ ! -f 'stg/test_lambda_function.py' ]; then
+  echo "Missing test file in `pwd` after cp -Rp src/ stg/ "
+  exit 1
+fi
+
 find stg -name "*.pyc" -delete
 
 rm -rf venv
