@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ "$(basename $(dirname $(pwd)))" != "functions" ]; then
     echo 'This script only works if your working directory is that of a'
     echo 'lambda function. That is, you must be in a folder whose'
@@ -109,7 +111,7 @@ popd  > /dev/null
 
 echo "Activating $(pwd)/venv ..."
 
-source venv/bin/activate
+. venv/bin/activate
 
 mv "${archive_name}" builds/
 
