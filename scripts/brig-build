@@ -127,19 +127,18 @@ pushd ../stg  > /dev/null
 
 PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
-popd > /dev/null
-
 if [ $? -ne 0 ]; then
 
+    popd > /dev/null
     echo "Tests of 'stg' failed."
     exit 1
 
 elif [ "${do_build}" != "TRUE" ]; then
 
+    popd > /dev/null
     echo "Tests of 'stg' succeeded."
     echo "NOT making dirty build current."
-
-exit 0
+    exit 0
 
 fi
 

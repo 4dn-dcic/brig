@@ -1,0 +1,26 @@
+#!/bin/bash
+
+start_dir=`pwd`
+success=TRUE
+
+for x in `ls -p functions/ | grep '/$'`; do
+  pushd functions/$x > /dev/null
+  echo Testing `pwd`
+  date  # mark start time
+  brig-test
+  if [ $? -ne 0 ]; then
+      success=FALSE
+  fi
+  date  # mark end time
+  echo Done testing `pwd`
+  popd > /dev/null
+done
+
+cd $start_dir
+if [ "$success" = "TRUE" ]; then
+    echo "Unit testing succeeded."
+    exit 0
+else
+    echo "Unit testing failed."
+    exit 1
+fi
