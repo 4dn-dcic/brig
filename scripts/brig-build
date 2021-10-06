@@ -135,6 +135,10 @@ pushd ../stg  > /dev/null
 # want to descend into all the included libraries that may have test files
 # we don't want to run.
 
+echo "current dir = "`pwd`
+
+ls -dal `pwd`/*
+
 PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 if [ $? -ne 0 ]; then
