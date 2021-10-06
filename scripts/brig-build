@@ -114,7 +114,7 @@ echo "Activating $(pwd)/venv ..."
 source venv/bin/activate
 
 if [ ! -f 'stg/test_lambda_function.py' ]; then
-  echo "Missing test file"
+  echo "Missing test file in `pwd` after activation of venv"
   exit 1
 fi
 
@@ -127,7 +127,7 @@ pip install -r requirements.txt
 pip install pytest
 
 if [ ! -f 'stg/test_lambda_function.py' ]; then
-  echo "Missing test file"
+  echo "Missing test file in `pwd` after installing into venv"
   exit 1
 fi
 
@@ -142,7 +142,7 @@ echo "Running unit tests..."
 pushd ../stg  > /dev/null
 
 if [ ! -f 'test_lambda_function.py' ]; then
-  echo "Missing test file"
+  echo "Missing test file in `pwd` just before running pytest"
   exit 1
 fi
 
