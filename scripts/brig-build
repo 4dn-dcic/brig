@@ -93,7 +93,7 @@ if [ -e "../requirements.txt" ]; then
 
     echo "Installing requirements ..."
 
-    pip install --no-clean -r ../requirements.txt -t ./
+    pip install --ignore-installed --no-clean -r ../requirements.txt -t ./
 
     echo "Requirements installed."
 
