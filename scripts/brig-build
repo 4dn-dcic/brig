@@ -81,7 +81,11 @@ fi
 
 # cp -Rp src/ stg/
 
-rsync -R src/* stg/
+pushd src > /dev/null
+
+rsync -R * ../stg/
+
+popd > /dev/null
 
 ls -dal `pwd`/stg/*
 
