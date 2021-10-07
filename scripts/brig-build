@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ "$(basename $(dirname $(pwd)))" != "functions" ]; then
     echo 'This script only works if your working directory is that of a'
     echo 'lambda function. That is, you must be in a folder whose'
@@ -70,13 +72,21 @@ echo  "Current directory: "`pwd`
 
 echo "Building zip ${archive_name} ..."
 
-cp -Rp src/ stg/
+pushd src > /dev/null
+
+rsync -R * ../stg/
+
+popd > /dev/null
+
+echo "src/ has been copied to stg/ ..."
+
+ls -dal `pwd`/stg/*
 
 find stg -name "*.pyc" -delete
 
 rm -rf venv
 
-pyenv exec python -m venv venv
+pyenv exec python -m venv venv || python3 -m venv venv
 
 echo "Upgrading pip ..."
 
@@ -111,6 +121,19 @@ echo "Activating $(pwd)/venv ..."
 
 source venv/bin/activate
 
+# This environment is for testing, not for production
+
+pip install --upgrade pip
+
+pip install -r requirements.txt
+
+pip install pytest
+
+if [ ! -f 'stg/test_lambda_function.py' ]; then
+  echo "Missing test file in `pwd`/stg after installing into venv"
+  exit 1
+fi
+
 mv "${archive_name}" builds/
 
 pushd builds/ > /dev/null
@@ -125,21 +148,22 @@ pushd ../stg  > /dev/null
 # want to descend into all the included libraries that may have test files
 # we don't want to run.
 
-PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
+echo "current dir for testing = "`pwd`
 
-popd > /dev/null
+PYTHONPATH=".:${PYTHONPATH}" pytest -vv test_*.py
 
 if [ $? -ne 0 ]; then
 
+    popd > /dev/null
     echo "Tests of 'stg' failed."
     exit 1
 
 elif [ "${do_build}" != "TRUE" ]; then
 
+    popd > /dev/null
     echo "Tests of 'stg' succeeded."
     echo "NOT making dirty build current."
-
-exit 0
+    exit 0
 
 fi
 

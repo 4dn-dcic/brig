@@ -3,7 +3,8 @@ import datetime
 import json
 import unittest
 
-from dcicutils.misc_utils import hms_now, HMS_TZ, as_datetime, in_datetime_interval
+from dcicutils.exceptions import InvalidParameterError
+from dcicutils.misc_utils import ref_now, REF_TZ, as_datetime, in_datetime_interval
 from dcicutils.qa_utils import ControlledTime
 from unittest import mock
 from . import lambda_function as lambda_function_module
@@ -491,7 +492,7 @@ class TestInternals(ApiTestCaseBase):
 
         with datetime_for_testing(datetime.datetime(2016, 7, 4, 0, 0, 0)):
 
-            now = hms_now()  # This will be converted to HMS time.
+            now = ref_now()  # This will be converted to HMS time.
             # print("now=", now)
             assert in_datetime_interval(now,
                                         start="2016-07-03 23:59:00" + tz_edt_offset,
@@ -539,11 +540,11 @@ class TestInternals(ApiTestCaseBase):
                                             start="2016-06-03 22:59:00" + tz_cdt_offset,
                                             end="2016-06-03 23:01:00" + tz_cdt_offset)
 
-        # This just makes sure that EDT/EST is accommodated by the hms_now() function,
+        # This just makes sure that EDT/EST is accommodated by the ref_now() function,
         # though it will be separately tested, too.
         with datetime_for_testing(datetime.datetime(2016, 1, 4, 0, 0, 0)):
 
-            now = hms_now()
+            now = ref_now()
             # print("now=", now)
             assert in_datetime_interval(now,
                                         start="2016-01-03 23:59:00" + tz_est_offset,
@@ -560,26 +561,26 @@ class TestInternals(ApiTestCaseBase):
                                             start="2016-06-03 22:59:00" + tz_cst_offset,
                                             end="2016-06-03 23:01:00" + tz_cst_offset)
 
-    def test_hms_now(self):
+    def test_ref_now(self):
 
         with datetime_for_testing(datetime.datetime(2016, 1, 4, 0, 0, 0)):
 
-            assert str(hms_now()) == "2016-01-04 00:00:01-05:00"
+            assert str(ref_now()) == "2016-01-04 00:00:01-05:00"
 
     def test_as_datetime(self):
 
         tz_est_offset = "-0500"  # US/Eastern Standard Time (EST) - 5 hours offset from UTC
         tz_edt_offset = "-0400"  # US/Eastern Daylight Time (EDT) - 4 hours offset from UTC
 
-        time1 = HMS_TZ.localize(datetime.datetime(2016, 6, 3, 22, 59))
+        time1 = REF_TZ.localize(datetime.datetime(2016, 6, 3, 22, 59))
         time_str1 = "2016-06-03 22:59:00"
         assert as_datetime(time_str1 + tz_edt_offset) == time1
-        assert as_datetime(time_str1, tz=HMS_TZ) == time1
+        assert as_datetime(time_str1, tz=REF_TZ) == time1
 
-        time2 = HMS_TZ.localize(datetime.datetime(2016, 1, 3, 22, 59))
+        time2 = REF_TZ.localize(datetime.datetime(2016, 1, 3, 22, 59))
         time_str2 = "2016-01-03 22:59:00"
         assert as_datetime(time_str2 + tz_est_offset) == time2
-        assert as_datetime(time_str2, tz=HMS_TZ) == time2
+        assert as_datetime(time_str2, tz=REF_TZ) == time2
 
     def test_resolve_environment(self):
 
@@ -635,4 +636,6 @@ class TestInternals(ApiTestCaseBase):
 
         test(application='cgap', expected='fourfront-cgap')
         test(application='fourfront', expected='fourfront-webprod')
-        test(application='something', expected='fourfront-webprod')  # anything not cgap is assumed fourfront
+
+        with self.assertRaises(InvalidParameterError):
+            test(application='something', expected='fourfront-webprod')  # anything not cgap is assumed fourfront
