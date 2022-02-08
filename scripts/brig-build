@@ -86,7 +86,13 @@ find stg -name "*.pyc" -delete
 
 rm -rf venv
 
-pyenv exec python -m venv venv || python3 -m venv venv
+pycmd='pyenv exec python'
+
+if [ -n "${TEST_ROOT}" -a -f "${TEST_ROOT}/.python-cmd" ]; then
+  pycmd=`cat ${TEST_ROOT}/.python-cmd`
+fi
+
+${pycmd} -m venv venv || python3 -m venv venv
 
 echo "Upgrading pip ..."
 

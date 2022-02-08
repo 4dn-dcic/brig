@@ -7,7 +7,7 @@ for x in `ls -p functions/ | grep '/$'`; do
   pushd functions/$x > /dev/null
   echo Testing `pwd`
   date  # mark start time
-  $start_dir/scripts/brig-test
+  TEST_ROOT="$start_dir" $start_dir/scripts/brig-test
   if [ $? -ne 0 ]; then
       success=FALSE
   fi
