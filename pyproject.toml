@@ -28,7 +28,7 @@ include = [
 # use. For more reliable pre-deploy testing, use the brig-test script from within an individual function or
 # api folder. -kmp 5-Nov-2020
 python = ">=3.6.1,<3.10"
-dcicutils = ">= 3.10.0"
+dcicutils = ">= 3.9.0"
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.4"
 requests = ">=2.24.0"
