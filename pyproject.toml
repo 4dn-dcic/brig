@@ -29,17 +29,17 @@ include = [
 # api folder. -kmp 5-Nov-2020
 python = ">=3.6.1,<3.10"
 dcicutils = ">= 3.9.0"
-python-dateutil = ">=2.8.1"
-pytz = ">=2020.4"
-requests = ">=2.24.0"
+python-dateutil = ">=2.8.2"
+pytz = ">=2021.3"
+requests = ">=2.27.1"
 
 [tool.poetry.dev-dependencies]
-pytest = ">=3.0.5,<4"
-pytest-cov = ">=2.3.1,<3"
+pytest = ">=7.0.0"
+# pytest-cov isn't needed because we don't do coverage tests in this repo
+# pytest-cov = ">=3.0.0"
 # pygments is only needed by PyCharm to render the README
-# nose = ">=1.3.7"
-pygments = ">=2"
+pygments = ">=2.11.2"
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
